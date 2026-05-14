@@ -50,7 +50,7 @@ jobs:
                      -scheme Clippi \
                      -configuration Release \
                      -derivedDataPath build/ \
-                     ONLY_ACTIVE_ARCH=NO \
+                     ONLY_ACTIVE_ARCH=YES \
                      CODE_SIGNING_ALLOWED=NO
 
       - name: Create DMG
