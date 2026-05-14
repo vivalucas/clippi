@@ -8,6 +8,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -47,8 +50,24 @@ jobs:
       - name: Build Windows app
         run: dotnet build windows/Clippi/Clippi.csproj -c Release -p:Platform=x64 -r win-x64 -o build/
 
+      - name: Package Windows app
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path build\* -DestinationPath dist\Clippi-windows.zip -Force
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Clippi-windows
-          path: build/
+          path: dist/
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:GITHUB_REF_NAME
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:GITHUB_REF_NAME --title $env:GITHUB_REF_NAME --notes "Automated build for $env:GITHUB_REF_NAME"
+          }
+          gh release upload $env:GITHUB_REF_NAME dist\Clippi-windows.zip --clobber
