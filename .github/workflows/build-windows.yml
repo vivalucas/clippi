@@ -1,0 +1,40 @@
+name: Build Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Rust core library
+        working-directory: core
+        run: cargo build --release
+
+      - name: Download ffmpeg
+        run: .\scripts\download_ffmpeg.ps1
+
+      - name: Build Windows app
+        run: |
+          # TODO: Add MSBuild commands
+          echo "Building Windows app..."
+
+      - name: Create installer
+        run: |
+          # TODO: Create exe installer
+          echo "Creating installer..."
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clippi-windows
+          path: build/

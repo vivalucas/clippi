@@ -1,0 +1,55 @@
+<Window
+    x:Class="Clippi.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Clippi"
+    Width="800"
+    Height="600">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="Clippi"
+                   Style="{StaticResource TitleTextBlockStyle}"
+                   Margin="0,0,0,20"/>
+
+        <!-- Drop Area -->
+        <Border Grid.Row="1"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="2"
+                CornerRadius="8"
+                Padding="40">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <FontIcon Glyph="&#xE710;" FontSize="48" Margin="0,0,0,16"/>
+                <TextBlock Text="拖拽视频文件到这里"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- File Info -->
+        <StackPanel Grid.Row="2" x:Name="FileInfoPanel" Visibility="Collapsed">
+            <TextBlock Text="文件信息" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock x:Name="ResolutionText"/>
+            <TextBlock x:Name="DurationText"/>
+            <TextBlock x:Name="CodecText"/>
+        </StackPanel>
+
+        <!-- Controls -->
+        <StackPanel Grid.Row="3" x:Name="ControlsPanel" Visibility="Collapsed">
+            <Button Content="开始处理"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="StartProcessing_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

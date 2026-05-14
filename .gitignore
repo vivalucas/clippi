@@ -1,0 +1,36 @@
+# Rust
+/target/
+Cargo.lock
+
+# ffmpeg binaries (downloaded via scripts)
+/ffmpeg/
+
+# macOS
+.DS_Store
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+build/
+
+# Windows
+*.suo
+*.user
+*.sln.docstates
+bin/
+obj/
+Debug/
+Release/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Claude Code
+.claude/
+
+# Project log (local only)
+project-log/
