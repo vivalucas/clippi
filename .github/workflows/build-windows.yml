@@ -16,6 +16,17 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            core/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('core/Cargo.lock') }}
+
       - name: Build Rust core library
         working-directory: core
         run: cargo build --release
@@ -23,15 +34,16 @@ jobs:
       - name: Download ffmpeg
         run: .\scripts\download_ffmpeg.ps1
 
-      - name: Build Windows app
-        run: |
-          # TODO: Add MSBuild commands
-          echo "Building Windows app..."
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
-      - name: Create installer
-        run: |
-          # TODO: Create exe installer
-          echo "Creating installer..."
+      - name: Restore NuGet packages
+        run: dotnet restore windows/Clippi/Clippi.csproj
+
+      - name: Build Windows app
+        run: dotnet build windows/Clippi/Clippi.csproj -c Release -o build/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

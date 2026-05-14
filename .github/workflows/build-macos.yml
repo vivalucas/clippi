@@ -16,25 +16,50 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            core/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('core/Cargo.lock') }}
+
       - name: Build Rust core library
         working-directory: core
         run: cargo build --release
 
       - name: Download ffmpeg
-        run: chmod +x scripts/download_ffmpeg.sh && ./scripts/download_ffmpeg.sh
+        run: |
+          chmod +x scripts/download_ffmpeg.sh
+          ./scripts/download_ffmpeg.sh
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Build macOS app
         run: |
-          # TODO: Add Xcode build commands
-          echo "Building macOS app..."
+          # Build using xcodebuild
+          xcodebuild -project macos/Clippi.xcodeproj \
+                     -scheme Clippi \
+                     -configuration Release \
+                     -derivedDataPath build/ \
+                     ONLY_ACTIVE_ARCH=NO
 
       - name: Create DMG
         run: |
-          # TODO: Create DMG installer
-          echo "Creating DMG..."
+          mkdir -p dist
+          hdiutil create -volname "Clippi" \
+                         -srcfolder build/Build/Products/Release/Clippi.app \
+                         -ov -format UDZO \
+                         dist/Clippi-macos.dmg
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Clippi-macos
-          path: build/
+          path: dist/
