@@ -2,7 +2,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::io::{BufRead, BufReader};
 use anyhow::{Context, Result};
-use crate::types::{TaskConfig, Operation, OutputFormat, AudioFormat, TaskHandle, ProgressFn};
+use crate::types::{TaskConfig, Operation, AudioFormat, TaskHandle, ProgressFn};
 use crate::error::CoreError;
 
 static TASK_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -39,7 +39,7 @@ pub fn run_task(config: TaskConfig, callback: ProgressFn) -> Result<TaskHandle> 
                             if duration > 0.0 {
                                 let percent = (time_us / 1_000_000.0 / duration * 100.0).min(100.0);
                                 callback(crate::types::Progress {
-                                    percent,
+                                    percent: percent as f32,
                                     speed: String::new(),
                                     eta_secs: None,
                                 });
@@ -58,9 +58,9 @@ pub fn run_task(config: TaskConfig, callback: ProgressFn) -> Result<TaskHandle> 
             }
         }
 
-        let status = child.wait().context("Failed to wait for ffmpeg")?;
+        let status = child.wait().map_err(|e| CoreError::FFmpegFailed(e.to_string()))?;
         if !status.success() {
-            return Err(CoreError::FFmpegFailed(format!("ffmpeg exited with status {}", status)).into());
+            return Err(CoreError::FFmpegFailed(format!("ffmpeg exited with status {}", status)));
         }
 
         Ok(())
