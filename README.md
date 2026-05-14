@@ -26,34 +26,81 @@ Clippi 是一款跨平台、原生图形界面的视频处理工具，以 ffmpeg
 
 ```
 clippi/
-├── core/          # Rust 核心库
-├── macos/         # macOS SwiftUI 项目
-├── windows/       # Windows WinUI 3 项目
-├── scripts/       # 构建脚本
-├── project-log/   # 开发知识库
-└── docs/          # 文档
+├── core/                          # Rust 核心库
+│   ├── src/
+│   │   ├── lib.rs                 # 模块定义
+│   │   ├── ffi.rs                 # C FFI 接口
+│   │   ├── probe.rs               # ffprobe 文件信息读取
+│   │   ├── gpu.rs                 # GPU 探测
+│   │   ├── task.rs                # 任务执行
+│   │   ├── queue.rs               # 队列管理
+│   │   ├── progress.rs            # 进度解析
+│   │   ├── types.rs               # 数据类型定义
+│   │   └── error.rs               # 错误类型
+│   └── Cargo.toml
+├── macos/                         # macOS SwiftUI 项目
+│   ├── Clippi.xcodeproj/
+│   └── Clippi/
+│       ├── ClippiApp.swift        # App 入口
+│       ├── FFI/ClippiFFI.swift    # Swift FFI 封装
+│       ├── ViewModels/            # ViewModel 层
+│       └── Views/                 # View 层
+├── windows/                       # Windows WinUI 3 项目
+│   └── Clippi/
+│       ├── App.xaml/cs            # App 入口
+│       ├── MainWindow.xaml/cs     # 主窗口
+│       ├── ViewModels/            # ViewModel 层
+│       └── ClippiCore.cs          # C# P/Invoke 封装
+├── scripts/                       # 构建脚本
+│   ├── download_ffmpeg.sh         # macOS/Linux ffmpeg 下载
+│   ├── download_ffmpeg.ps1        # Windows ffmpeg 下载
+│   ├── build-core.sh              # Rust 核心库构建 (macOS/Linux)
+│   └── build-core.ps1             # Rust 核心库构建 (Windows)
+├── .github/workflows/             # CI/CD
+│   ├── build-macos.yml
+│   └── build-windows.yml
+├── LICENSE                        # GPL-2.0
+└── README.md
 ```
 
-## 开发
+## 构建
 
-### 环境要求
+项目使用 GitHub Actions 自动构建。推送 `v*` 格式的 tag 会触发构建流程。
+
+### 本地开发
+
+#### 环境要求
 
 - Rust (stable)
 - ffmpeg (通过脚本下载)
-- macOS: Xcode
-- Windows: Visual Studio + .NET
+- macOS: Xcode 15+
+- Windows: Visual Studio 2022 + .NET 8 SDK
 
-### 构建
+#### 构建步骤
 
 ```bash
-# 下载 ffmpeg
-./scripts/download_ffmpeg.sh  # macOS/Linux
-.\scripts\download_ffmpeg.ps1  # Windows
+# 1. 下载 ffmpeg
+./scripts/download_ffmpeg.sh      # macOS/Linux
+.\scripts\download_ffmpeg.ps1     # Windows
 
-# 构建 Rust 核心库
-cd core
-cargo build --release
+# 2. 构建 Rust 核心库
+./scripts/build-core.sh           # macOS/Linux
+.\scripts\build-core.ps1          # Windows
+
+# 3. 打开 IDE 项目
+# macOS: 打开 macos/Clippi.xcodeproj
+# Windows: 打开 windows/Clippi/Clippi.csproj
 ```
+
+### 发布
+
+```bash
+# 创建版本 tag 并推送，触发 CI/CD 构建
+git tag v0.0.1
+git push origin v0.0.1
+```
+
+构建完成后，可以在 GitHub Releases 页面下载对应平台的安装包。
 
 ## 许可证
 
