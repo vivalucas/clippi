@@ -4,7 +4,9 @@ import SwiftUI
 struct ClippiApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView()
         }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 700, height: 600)
     }
 }

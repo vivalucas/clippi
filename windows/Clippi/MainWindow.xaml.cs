@@ -1,28 +1,195 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using System;
+using System.IO;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using Clippi.ViewModels;
 
 namespace Clippi
 {
     public sealed partial class MainWindow : Window
     {
+        public MainViewModel ViewModel { get; } = new();
+
         public MainWindow()
         {
             this.InitializeComponent();
         }
 
-        private async void StartProcessing_Click(object sender, RoutedEventArgs e)
+        private Visibility ConvertBoolToVisibility(bool value)
         {
-            // TODO: Implement processing
-            var dialog = new ContentDialog
+            return value ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private string FormatResolution(int width, int height)
+        {
+            return $"{width} x {height}";
+        }
+
+        private string FormatDuration(double seconds)
+        {
+            var ts = TimeSpan.FromSeconds(seconds);
+            return $"{ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+        }
+
+        private string FormatFrameRate(double fps)
+        {
+            return $"{fps:F2} fps";
+        }
+
+        private async void OnFileDrop(object sender, DragEventArgs e)
+        {
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
             {
-                Title = "处理中",
-                Content = "正在处理视频...",
-                CloseButtonText = "确定"
+                var items = await e.DataView.GetStorageItemsAsync();
+                if (items.Count > 0 && items[0] is StorageFile file)
+                {
+                    ViewModel.ProbeFile(file.Path);
+                    UpdateUI();
+                }
+            }
+        }
+
+        private void OnDragOver(object sender, DragEventArgs e)
+        {
+            e.AcceptedDataPackageOperations = DataPackageOperations.Copy;
+            e.DragInfo.Caption = "拖放到这里";
+        }
+
+        private async void OnSelectFileTapped(object sender, TappedRoutedEventArgs e)
+        {
+            var picker = new FileOpenPicker();
+            picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
+            picker.FileTypeFilter.Add(".mp4");
+            picker.FileTypeFilter.Add(".mkv");
+            picker.FileTypeFilter.Add(".mov");
+            picker.FileTypeFilter.Add(".webm");
+            picker.FileTypeFilter.Add(".avi");
+
+            // WinUI 3 requires HWND
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                ViewModel.ProbeFile(file.Path);
+                UpdateUI();
+            }
+        }
+
+        private void OnOperationChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var index = (sender as RadioButtons)?.SelectedIndex ?? 0;
+
+            TrimPanel.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
+            FormatPanel.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
+            ScalePanel.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
+            AudioPanel.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
+            RemoveAudioText.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
+
+            ViewModel.SelectedOperation = index switch
+            {
+                0 => "trim",
+                1 => "convert",
+                2 => "scale",
+                3 => "extractAudio",
+                4 => "removeAudio",
+                _ => "trim"
             };
-            dialog.XamlRoot = this.Content.XamlRoot;
-            await dialog.ShowAsync();
+        }
+
+        private void OnFormatChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var index = (sender as RadioButtons)?.SelectedIndex ?? 0;
+            ViewModel.OutputFormat = index switch
+            {
+                0 => "mp4",
+                1 => "mkv",
+                2 => "mov",
+                3 => "webm",
+                _ => "mp4"
+            };
+            UpdateOutputPath();
+        }
+
+        private void OnResolutionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var index = (sender as RadioButtons)?.SelectedIndex ?? 1;
+            ViewModel.TargetResolution = index switch
+            {
+                0 => "4K",
+                1 => "1080p",
+                2 => "720p",
+                3 => "480p",
+                _ => "1080p"
+            };
+        }
+
+        private void OnAudioFormatChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var index = (sender as RadioButtons)?.SelectedIndex ?? 0;
+            ViewModel.AudioFormat = index switch
+            {
+                0 => "mp3",
+                1 => "aac",
+                2 => "wav",
+                _ => "mp3"
+            };
+            UpdateOutputPath();
+        }
+
+        private async void OnSelectOutputPath(object sender, RoutedEventArgs e)
+        {
+            var picker = new FolderPicker();
+            picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder != null)
+            {
+                var fileName = Path.GetFileNameWithoutExtension(ViewModel.FileName);
+                ViewModel.OutputPath = Path.Combine(folder.Path, $"{fileName}_output.{ViewModel.OutputFormat}");
+            }
+        }
+
+        private async void OnStartClick(object sender, RoutedEventArgs e)
+        {
+            ProgressPanel.Visibility = Visibility.Visible;
+            StartButton.Visibility = Visibility.Collapsed;
+
+            await ViewModel.StartProcessingAsync();
+
+            ProgressPanel.Visibility = Visibility.Collapsed;
+            StartButton.Visibility = Visibility.Visible;
+        }
+
+        private void OnCancelClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel.CancelProcessing();
+            ProgressPanel.Visibility = Visibility.Collapsed;
+            StartButton.Visibility = Visibility.Visible;
+        }
+
+        private void UpdateUI()
+        {
+            StartButton.Visibility = ViewModel.HasFile ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void UpdateOutputPath()
+        {
+            if (!string.IsNullOrEmpty(ViewModel.FilePath))
+            {
+                var dir = Path.GetDirectoryName(ViewModel.FilePath) ?? "";
+                var name = Path.GetFileNameWithoutExtension(ViewModel.FileName);
+                ViewModel.OutputPath = Path.Combine(dir, $"{name}_output.{ViewModel.OutputFormat}");
+            }
         }
     }
 }

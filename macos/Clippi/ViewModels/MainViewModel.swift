@@ -1,0 +1,240 @@
+import Foundation
+import SwiftUI
+import Combine
+
+@MainActor
+class MainViewModel: ObservableObject {
+    @Published var fileInfo: FileInfo?
+    @Published var selectedOperation: OperationType = .trim
+    @Published var isProcessing = false
+    @Published var progress: Double = 0
+    @Published var statusMessage = ""
+    @Published var showError = false
+    @Published var errorMessage = ""
+    @Published var gpuInfo: GpuInfo?
+
+    // Trim settings
+    @Published var startTime: Double = 0
+    @Published var endTime: Double = 0
+    @Published var fastMode = true
+
+    // Scale settings
+    @Published var targetResolution: Resolution = .p1080
+
+    // Audio settings
+    @Published var audioFormat: AudioFormat = .mp3
+
+    // Output
+    @Published var outputFormat: OutputFormat = .mp4
+    @Published var outputPath: String = ""
+
+    private var currentTaskId: UInt64 = 0
+
+    enum OperationType: String, CaseIterable {
+        case trim = "裁剪"
+        case convert = "转换格式"
+        case scale = "缩放"
+        case extractAudio = "提取音频"
+        case removeAudio = "去除音频"
+    }
+
+    enum Resolution: String, CaseIterable {
+        case p4k = "4K (3840x2160)"
+        case p1080 = "1080p (1920x1080)"
+        case p720 = "720p (1280x720)"
+        case p480 = "480p (854x480)"
+
+        var width: Int {
+            switch self {
+            case .p4k: return 3840
+            case .p1080: return 1920
+            case .p720: return 1280
+            case .p480: return 854
+            }
+        }
+
+        var height: Int {
+            switch self {
+            case .p4k: return 2160
+            case .p1080: return 1080
+            case .p720: return 720
+            case .p480: return 480
+            }
+        }
+    }
+
+    enum AudioFormat: String, CaseIterable {
+        case mp3 = "MP3"
+        case aac = "AAC"
+        case wav = "WAV"
+    }
+
+    enum OutputFormat: String, CaseIterable {
+        case mp4 = "MP4"
+        case mkv = "MKV"
+        case mov = "MOV"
+        case webm = "WebM"
+    }
+
+    struct FileInfo {
+        let width: Int
+        let height: Int
+        let duration: Double
+        let codec: String
+        let frameRate: Double
+        let bitrate: Int
+        let path: String
+    }
+
+    struct GpuInfo {
+        let encoder: String?
+        let hwAccel: String?
+    }
+
+    init() {
+        detectGpu()
+    }
+
+    func detectGpu() {
+        guard let result = ClippiFFI.detectGpu() else { return }
+        if let encoder = result["video_encoder"] as? String {
+            gpuInfo = GpuInfo(encoder: encoder, hwAccel: result["hw_accel"] as? String)
+        } else {
+            gpuInfo = GpuInfo(encoder: nil, hwAccel: nil)
+        }
+    }
+
+    func probeFile(at url: URL) {
+        guard let result = ClippiFFI.probeFile(path: url.path) else {
+            showError("无法读取文件信息")
+            return
+        }
+
+        fileInfo = FileInfo(
+            width: result["width"] as? Int ?? 0,
+            height: result["height"] as? Int ?? 0,
+            duration: result["duration_secs"] as? Double ?? 0,
+            codec: result["codec"] as? String ?? "unknown",
+            frameRate: result["frame_rate"] as? Double ?? 0,
+            bitrate: result["bitrate"] as? Int ?? 0,
+            path: url.path
+        )
+
+        endTime = fileInfo?.duration ?? 0
+        outputPath = generateOutputPath(input: url.path)
+    }
+
+    func startProcessing() {
+        guard let fileInfo = fileInfo else { return }
+
+        isProcessing = true
+        progress = 0
+        statusMessage = "处理中..."
+
+        let config = buildTaskConfig()
+
+        Task {
+            let taskId = ClippiFFI.runTask(config: config) { [weak self] progressJson in
+                DispatchQueue.main.async {
+                    self?.updateProgress(from: progressJson)
+                }
+            }
+
+            if taskId > 0 {
+                currentTaskId = taskId
+            } else {
+                await MainActor.run {
+                    isProcessing = false
+                    showError("启动任务失败")
+                }
+            }
+        }
+    }
+
+    func cancelProcessing() {
+        if currentTaskId > 0 {
+            _ = ClippiFFI.cancelTask(id: currentTaskId)
+            currentTaskId = 0
+            isProcessing = false
+            statusMessage = "已取消"
+        }
+    }
+
+    private func buildTaskConfig() -> [String: Any] {
+        guard let fileInfo = fileInfo else { return [:] }
+
+        var operation: [String: Any] = [:]
+        switch selectedOperation {
+        case .trim:
+            operation = [
+                "Trim": [
+                    "start": startTime,
+                    "end": endTime,
+                    "fast_mode": fastMode
+                ]
+            ]
+        case .convert:
+            operation = [
+                "Convert": [
+                    "format": outputFormat.rawValue.lowercased()
+                ]
+            ]
+        case .scale:
+            operation = [
+                "Scale": [
+                    "width": targetResolution.width,
+                    "height": targetResolution.height
+                ]
+            ]
+        case .extractAudio:
+            operation = [
+                "ExtractAudio": [
+                    "format": audioFormat.rawValue.lowercased()
+                ]
+            ]
+        case .removeAudio:
+            operation = "RemoveAudio"
+        }
+
+        return [
+            "input_path": fileInfo.path,
+            "output_path": outputPath,
+            "operation": operation,
+            "video_codec": gpuInfo?.encoder ?? "libx264",
+            "audio_codec": "aac",
+            "hw_accel": gpuInfo?.hwAccel as Any
+        ]
+    }
+
+    private func updateProgress(from json: String) {
+        guard let data = json.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+
+        if let percent = dict["percent"] as? Double {
+            progress = percent
+        }
+
+        if let speed = dict["speed"] as? String, !speed.isEmpty {
+            statusMessage = "处理中... 速度: \(speed)"
+        }
+
+        if let eta = dict["eta_secs"] as? Int {
+            statusMessage += " 剩余: \(eta)秒"
+        }
+    }
+
+    private func generateOutputPath(input: String) -> String {
+        let url = URL(fileURLWithPath: input)
+        let name = url.deletingPathExtension().lastPathComponent
+        let dir = url.deletingLastPathComponent().path
+        let ext = outputFormat.rawValue.lowercased()
+        return "\(dir)/\(name)_output.\(ext)"
+    }
+
+    private func showError(_ message: String) {
+        errorMessage = message
+        showError = true
+    }
+}
