@@ -4,6 +4,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
 use std::sync::Mutex;
+use std::sync::Arc;
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use serde_json;
@@ -75,7 +76,7 @@ pub extern "C" fn clippi_run_task(
         Err(_) => return 0,
     };
 
-    let callback_box: ProgressFn = Box::new(move |progress| {
+    let callback_box: ProgressFn = Arc::new(move |progress| {
         let json = serde_json::to_string(&progress).unwrap_or_default();
         let c_str = CString::new(json).unwrap();
         callback(c_str.as_ptr());
@@ -128,7 +129,7 @@ pub extern "C" fn clippi_queue_tasks(
         Err(_) => return ptr::null_mut(),
     };
 
-    let callback_box: ProgressFn = Box::new(move |progress| {
+    let callback_box: ProgressFn = Arc::new(move |progress| {
         let json = serde_json::to_string(&progress).unwrap_or_default();
         let c_str = CString::new(json).unwrap();
         callback(c_str.as_ptr());

@@ -159,15 +159,12 @@ namespace Clippi
             }
         }
 
-        private async void OnStartClick(object sender, RoutedEventArgs e)
+        private void OnStartClick(object sender, RoutedEventArgs e)
         {
             ProgressPanel.Visibility = Visibility.Visible;
             StartButton.Visibility = Visibility.Collapsed;
 
-            await ViewModel.StartProcessingAsync();
-
-            ProgressPanel.Visibility = Visibility.Collapsed;
-            StartButton.Visibility = Visibility.Visible;
+            ViewModel.StartProcessing();
         }
 
         private void OnCancelClick(object sender, RoutedEventArgs e)

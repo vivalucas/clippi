@@ -9,12 +9,19 @@
 /* Begin PBXBuildFile section */
 		A1234567890ABCDEF0000001 /* ClippiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000002 /* ClippiApp.swift */; };
 		A1234567890ABCDEF0000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000004 /* ContentView.swift */; };
+		A1234567890ABCDEF0000014 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000015 /* MainView.swift */; };
+		A1234567890ABCDEF0000016 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000017 /* MainViewModel.swift */; };
+		A1234567890ABCDEF0000018 /* ClippiFFI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000019 /* ClippiFFI.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A1234567890ABCDEF0000002 /* ClippiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClippiApp.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF0000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF0000005 /* Clippi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clippi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1234567890ABCDEF0000015 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainView.swift; sourceTree = "<group>"; };
+		A1234567890ABCDEF0000017 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/MainViewModel.swift; sourceTree = "<group>"; };
+		A1234567890ABCDEF0000019 /* ClippiFFI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FFI/ClippiFFI.swift; sourceTree = "<group>"; };
+		A1234567890ABCDEF000001A /* ClippiCore.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ClippiCore.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -41,8 +48,12 @@
 			children = (
 				A1234567890ABCDEF0000002 /* ClippiApp.swift */,
 				A1234567890ABCDEF0000004 /* ContentView.swift */,
+				A1234567890ABCDEF0000015 /* MainView.swift */,
+				A1234567890ABCDEF0000017 /* MainViewModel.swift */,
+				A1234567890ABCDEF0000019 /* ClippiFFI.swift */,
+				A1234567890ABCDEF000001A /* ClippiCore.h */,
 			);
-			path = Sources;
+			path = Clippi;
 			sourceTree = "<group>";
 		};
 		A1234567890ABCDEF0000009 /* Products */ = {
@@ -117,7 +128,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1234567890ABCDEF0000001 /* ClippiApp.swift in Sources */,
-				A1234567890ABCDEF0000003 /* ContentView.swift in Sources */,
+				A1234567890ABCDEF0000014 /* MainView.swift in Sources */,
+				A1234567890ABCDEF0000016 /* MainViewModel.swift in Sources */,
+				A1234567890ABCDEF0000018 /* ClippiFFI.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -189,7 +202,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.clippi.Clippi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Clippi/ClippiCore.h";
 				SWIFT_VERSION = 5.0;
+				OTHER_LDFLAGS = (
+					"$(PROJECT_DIR)/../core/target/release/libclippi_core.a",
+				);
 			};
 			name = Debug;
 		};
@@ -209,7 +226,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.clippi.Clippi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Clippi/ClippiCore.h";
 				SWIFT_VERSION = 5.0;
+				OTHER_LDFLAGS = (
+					"$(PROJECT_DIR)/../core/target/release/libclippi_core.a",
+				);
 			};
 			name = Release;
 		};

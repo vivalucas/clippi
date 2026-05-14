@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// File information returned by ffprobe
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +47,7 @@ pub enum Operation {
 
 /// Supported output formats
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
     Mp4,
     Mkv,
@@ -55,6 +57,7 @@ pub enum OutputFormat {
 
 /// Supported audio formats
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AudioFormat {
     Mp3,
     Aac,
@@ -70,7 +73,7 @@ pub struct Progress {
 }
 
 /// Callback function type for progress reporting
-pub type ProgressFn = Box<dyn Fn(Progress) + Send + 'static>;
+pub type ProgressFn = Arc<dyn Fn(Progress) + Send + Sync + 'static>;
 
 /// Handle to a running task
 #[derive(Debug)]

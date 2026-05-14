@@ -125,7 +125,7 @@ class MainViewModel: ObservableObject {
     }
 
     func startProcessing() {
-        guard let fileInfo = fileInfo else { return }
+        guard fileInfo != nil else { return }
 
         isProcessing = true
         progress = 0
@@ -163,7 +163,7 @@ class MainViewModel: ObservableObject {
     private func buildTaskConfig() -> [String: Any] {
         guard let fileInfo = fileInfo else { return [:] }
 
-        var operation: [String: Any] = [:]
+        let operation: Any
         switch selectedOperation {
         case .trim:
             operation = [
@@ -196,14 +196,19 @@ class MainViewModel: ObservableObject {
             operation = "RemoveAudio"
         }
 
-        return [
+        var config: [String: Any] = [
             "input_path": fileInfo.path,
             "output_path": outputPath,
             "operation": operation,
             "video_codec": gpuInfo?.encoder ?? "libx264",
-            "audio_codec": "aac",
-            "hw_accel": gpuInfo?.hwAccel as Any
+            "audio_codec": "aac"
         ]
+
+        if let hwAccel = gpuInfo?.hwAccel {
+            config["hw_accel"] = hwAccel
+        }
+
+        return config
     }
 
     private func updateProgress(from json: String) {
@@ -214,6 +219,12 @@ class MainViewModel: ObservableObject {
 
         if let percent = dict["percent"] as? Double {
             progress = percent
+            if percent >= 100 {
+                isProcessing = false
+                currentTaskId = 0
+                statusMessage = "处理完成"
+                ClippiFFI.clearProgressCallback()
+            }
         }
 
         if let speed = dict["speed"] as? String, !speed.isEmpty {

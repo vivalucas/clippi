@@ -3,8 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Threading.Tasks;
-using Microsoft.UI.Xaml;
+using Microsoft.UI.Dispatching;
 
 namespace Clippi.ViewModels
 {
@@ -34,13 +33,20 @@ namespace Clippi.ViewModels
         private string _gpuEncoder = "软件编码";
 
         private ulong _currentTaskId;
+        private readonly DispatcherQueue? _dispatcherQueue;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public string FilePath
         {
             get => _filePath;
-            set { _filePath = value; OnPropertyChanged(); }
+            set
+            {
+                _filePath = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasFile));
+                OnPropertyChanged(nameof(HasNoFile));
+            }
         }
 
         public string FileName
@@ -158,9 +164,11 @@ namespace Clippi.ViewModels
         }
 
         public bool HasFile => !string.IsNullOrEmpty(FilePath);
+        public bool HasNoFile => !HasFile;
 
         public MainViewModel()
         {
+            _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
             DetectGpu();
         }
 
@@ -200,7 +208,9 @@ namespace Clippi.ViewModels
                 Duration = root.GetProperty("duration_secs").GetDouble();
                 Codec = root.GetProperty("codec").GetString() ?? "";
                 FrameRate = root.GetProperty("frame_rate").GetDouble();
-                Bitrate = root.GetProperty("bitrate").GetInt32();
+                Bitrate = root.GetProperty("bitrate").TryGetInt64(out long bitrate)
+                    ? (int)Math.Min(bitrate, int.MaxValue)
+                    : 0;
 
                 EndTime = Duration;
                 OutputPath = GenerateOutputPath(path);
@@ -211,7 +221,7 @@ namespace Clippi.ViewModels
             }
         }
 
-        public async Task StartProcessingAsync()
+        public void StartProcessing()
         {
             if (string.IsNullOrEmpty(FilePath)) return;
 
@@ -223,8 +233,14 @@ namespace Clippi.ViewModels
 
             _currentTaskId = ClippiCore.RunTask(config, progressJson =>
             {
-                // Update progress on UI thread
-                // Note: This callback comes from native code, need to marshal to UI thread
+                if (_dispatcherQueue != null)
+                {
+                    _dispatcherQueue.TryEnqueue(() => UpdateProgress(progressJson));
+                }
+                else
+                {
+                    UpdateProgress(progressJson);
+                }
             });
 
             if (_currentTaskId == 0)
@@ -252,7 +268,7 @@ namespace Clippi.ViewModels
                 input_path = FilePath,
                 output_path = OutputPath,
                 operation = GetOperation(),
-                video_codec = GpuEncoder ?? "libx264",
+                video_codec = GpuEncoder != "软件编码" ? GpuEncoder : "libx264",
                 audio_codec = "aac",
                 hw_accel = GpuEncoder != "软件编码" ? GetHwAccel() : null
             };
@@ -309,6 +325,39 @@ namespace Clippi.ViewModels
             var dir = Path.GetDirectoryName(inputPath) ?? "";
             var name = Path.GetFileNameWithoutExtension(inputPath);
             return Path.Combine(dir, $"{name}_output.{OutputFormat}");
+        }
+
+        private void UpdateProgress(string progressJson)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(progressJson);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("percent", out var percent))
+                {
+                    Progress = percent.GetDouble();
+                }
+
+                if (root.TryGetProperty("speed", out var speed) && speed.ValueKind == JsonValueKind.String)
+                {
+                    var speedText = speed.GetString();
+                    if (!string.IsNullOrWhiteSpace(speedText))
+                        StatusMessage = $"处理中... 速度: {speedText}";
+                }
+
+                if (Progress >= 100)
+                {
+                    IsProcessing = false;
+                    _currentTaskId = 0;
+                    StatusMessage = "处理完成";
+                    ClippiCore.ClearProgressCallback();
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"进度解析失败: {ex.Message}";
+            }
         }
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

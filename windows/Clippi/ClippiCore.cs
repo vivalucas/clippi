@@ -7,6 +7,11 @@ namespace Clippi
     public static class ClippiCore
     {
         private const string DllName = "clippi_core";
+        private static Action<string>? _managedProgressCallback;
+        private static readonly ProgressCallback _nativeProgressCallback = OnProgress;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate void ProgressCallback(IntPtr progressJson);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr clippi_probe_file(string path);
@@ -15,13 +20,13 @@ namespace Clippi
         private static extern IntPtr clippi_detect_gpu();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern ulong clippi_run_task(string config_json, IntPtr callback);
+        private static extern ulong clippi_run_task(string config_json, ProgressCallback callback);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern int clippi_cancel_task(ulong task_id);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr clippi_queue_tasks(string tasks_json, IntPtr callback);
+        private static extern IntPtr clippi_queue_tasks(string tasks_json, ProgressCallback callback);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern void clippi_free_string(IntPtr s);
@@ -56,9 +61,11 @@ namespace Clippi
         /// </summary>
         public static ulong RunTask(string configJson, Action<string> callback)
         {
-            // Note: In production, use proper delegate marshaling
-            IntPtr callbackPtr = IntPtr.Zero;
-            return clippi_run_task(configJson, callbackPtr);
+            _managedProgressCallback = callback;
+            ulong taskId = clippi_run_task(configJson, _nativeProgressCallback);
+            if (taskId == 0)
+                _managedProgressCallback = null;
+            return taskId;
         }
 
         /// <summary>
@@ -66,7 +73,10 @@ namespace Clippi
         /// </summary>
         public static bool CancelTask(ulong taskId)
         {
-            return clippi_cancel_task(taskId) == 1;
+            bool cancelled = clippi_cancel_task(taskId) == 1;
+            if (cancelled)
+                _managedProgressCallback = null;
+            return cancelled;
         }
 
         /// <summary>
@@ -76,6 +86,20 @@ namespace Clippi
         {
             if (ptr != IntPtr.Zero)
                 clippi_free_string(ptr);
+        }
+
+        public static void ClearProgressCallback()
+        {
+            _managedProgressCallback = null;
+        }
+
+        private static void OnProgress(IntPtr progressJson)
+        {
+            if (progressJson == IntPtr.Zero)
+                return;
+
+            string json = Marshal.PtrToStringAnsi(progressJson) ?? "";
+            _managedProgressCallback?.Invoke(json);
         }
     }
 }
