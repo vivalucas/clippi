@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Graphics;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Clippi.ViewModels;
@@ -18,6 +19,7 @@ namespace Clippi
         public MainWindow()
         {
             this.InitializeComponent();
+            AppWindow.Resize(new SizeInt32(700, 600));
         }
 
         private Visibility ConvertBoolToVisibility(bool value)
