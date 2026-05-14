@@ -58,8 +58,8 @@ namespace Clippi
 
         private void OnDragOver(object sender, DragEventArgs e)
         {
-            e.AcceptedDataPackageOperations = DataPackageOperations.Copy;
-            e.DragInfo.Caption = "拖放到这里";
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = "拖放到这里";
         }
 
         private async void OnSelectFileTapped(object sender, TappedRoutedEventArgs e)
