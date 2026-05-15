@@ -96,8 +96,8 @@ clippi/
 
 ```bash
 # 创建版本 tag 并推送，触发 CI/CD 构建
-git tag v0.0.1
-git push origin v0.0.1
+git tag v0.0.3
+git push origin v0.0.3
 ```
 
 构建完成后，可以在 GitHub Releases 页面下载对应平台的安装包。
