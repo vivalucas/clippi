@@ -2,10 +2,11 @@ use std::process::Command;
 use anyhow::{Context, Result};
 use crate::types::FileInfo;
 use crate::error::CoreError;
+use crate::binaries::ffprobe_path;
 
 /// Probe file metadata using ffprobe
 pub fn probe_file(path: &str) -> Result<FileInfo> {
-    let output = Command::new("ffprobe")
+    let output = Command::new(ffprobe_path())
         .args([
             "-v", "quiet",
             "-print_format", "json",

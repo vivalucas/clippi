@@ -324,7 +324,12 @@ namespace Clippi.ViewModels
         {
             var dir = Path.GetDirectoryName(inputPath) ?? "";
             var name = Path.GetFileNameWithoutExtension(inputPath);
-            return Path.Combine(dir, $"{name}_output.{OutputFormat}");
+            return Path.Combine(dir, $"{name}_output.{GetOutputExtension()}");
+        }
+
+        public string GetOutputExtension()
+        {
+            return SelectedOperation == "extractAudio" ? AudioFormat : OutputFormat;
         }
 
         private void UpdateProgress(string progressJson)

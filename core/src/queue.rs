@@ -15,9 +15,9 @@ pub fn queue_tasks(tasks: Vec<TaskConfig>, callback: ProgressFn) -> Result<Queue
     let task_ids = prepared_tasks.iter().map(|(id, _, _)| *id).collect();
 
     std::thread::spawn(move || {
-        for (_, args, duration) in prepared_tasks {
+        for (id, args, duration) in prepared_tasks {
             let (_cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
-            if execute_task_blocking(args, duration, cancel_rx, callback.clone()).is_err() {
+            if execute_task_blocking(id, args, duration, cancel_rx, callback.clone()).is_err() {
                 continue;
             }
         }

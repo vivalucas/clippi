@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		A1234567890ABCDEF0000001 /* ClippiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000002 /* ClippiApp.swift */; };
-		A1234567890ABCDEF0000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000004 /* ContentView.swift */; };
 		A1234567890ABCDEF0000014 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000015 /* MainView.swift */; };
 		A1234567890ABCDEF0000016 /* MainViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000017 /* MainViewModel.swift */; };
 		A1234567890ABCDEF0000018 /* ClippiFFI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890ABCDEF0000019 /* ClippiFFI.swift */; };
@@ -16,7 +15,6 @@
 
 /* Begin PBXFileReference section */
 		A1234567890ABCDEF0000002 /* ClippiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClippiApp.swift; sourceTree = "<group>"; };
-		A1234567890ABCDEF0000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF0000005 /* Clippi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clippi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1234567890ABCDEF0000015 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainView.swift; sourceTree = "<group>"; };
 		A1234567890ABCDEF0000017 /* MainViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModels/MainViewModel.swift; sourceTree = "<group>"; };
@@ -47,7 +45,6 @@
 			isa = PBXGroup;
 			children = (
 				A1234567890ABCDEF0000002 /* ClippiApp.swift */,
-				A1234567890ABCDEF0000004 /* ContentView.swift */,
 				A1234567890ABCDEF0000015 /* MainView.swift */,
 				A1234567890ABCDEF0000017 /* MainViewModel.swift */,
 				A1234567890ABCDEF0000019 /* ClippiFFI.swift */,
@@ -198,7 +195,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.0.3;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.clippi.Clippi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -222,7 +219,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.0.3;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.clippi.Clippi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

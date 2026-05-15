@@ -1,10 +1,13 @@
 use std::io::{BufRead, BufReader, Read};
 use std::process::{Child, Command, Stdio};
+use std::sync::mpsc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 use anyhow::Result;
 use crate::probe::probe_file;
 use crate::types::{TaskConfig, Operation, AudioFormat, OutputFormat, TaskHandle, Progress, ProgressFn};
 use crate::error::CoreError;
+use crate::binaries::ffmpeg_path;
 
 static TASK_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
@@ -17,7 +20,7 @@ pub fn run_task(config: TaskConfig, callback: ProgressFn) -> Result<TaskHandle> 
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
     std::thread::spawn(move || {
-        let _ = execute_task_blocking(args, duration, cancel_rx, callback);
+        let _ = execute_task_blocking(id, args, duration, cancel_rx, callback);
     });
 
     Ok(TaskHandle { id, cancel_tx })
@@ -33,6 +36,7 @@ pub(crate) fn prepare_task(config: &TaskConfig) -> Result<(Vec<String>, f64)> {
 }
 
 pub(crate) fn execute_task_blocking(
+    task_id: u64,
     args: Vec<String>,
     duration: f64,
     mut cancel_rx: tokio::sync::oneshot::Receiver<()>,
@@ -41,7 +45,7 @@ pub(crate) fn execute_task_blocking(
     let mut child = match spawn_ffmpeg(&args) {
         Ok(child) => child,
         Err(error) => {
-            report_failure(&callback, error.to_string());
+            report_failure(&callback, task_id, error.to_string());
             return Err(error);
         }
     };
@@ -51,7 +55,7 @@ pub(crate) fn execute_task_blocking(
         .take()
         .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg progress".to_string()))
         .map_err(|error| {
-            report_failure(&callback, error.to_string());
+            report_failure(&callback, task_id, error.to_string());
             error
         })?;
     let stderr = child.stderr.take().unwrap();
@@ -62,38 +66,63 @@ pub(crate) fn execute_task_blocking(
         stderr_text
     });
 
-    let reader = BufReader::new(stdout);
-    let mut speed = String::new();
-
-    for line in reader.lines() {
-        if let Ok(line) = line {
-            if line.starts_with("out_time_us=") {
-                if let Some(time_str) = line.strip_prefix("out_time_us=") {
-                    if let Ok(time_us) = time_str.trim().parse::<f64>() {
-                        if duration > 0.0 {
-                            let percent = (time_us / 1_000_000.0 / duration * 100.0).min(100.0);
-                            callback(Progress {
-                                percent: percent as f32,
-                                speed: speed.clone(),
-                                eta_secs: None,
-                                state: "running".to_string(),
-                                message: None,
-                            });
-                        }
+    let (line_tx, line_rx) = mpsc::channel();
+    let stdout_handle = std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            match line {
+                Ok(line) => {
+                    if line_tx.send(line).is_err() {
+                        break;
                     }
                 }
-            } else if line.starts_with("speed=") {
-                speed = line
-                    .strip_prefix("speed=")
-                    .unwrap_or_default()
-                    .trim()
-                    .to_string();
+                Err(_) => break,
+            }
+        }
+    });
+
+    let mut speed = String::new();
+
+    loop {
+        match line_rx.recv_timeout(Duration::from_millis(100)) {
+            Ok(line) => {
+                if line.starts_with("out_time_us=") {
+                    if let Some(time_str) = line.strip_prefix("out_time_us=") {
+                        if let Ok(time_us) = time_str.trim().parse::<f64>() {
+                            if duration > 0.0 {
+                                let percent = (time_us / 1_000_000.0 / duration * 100.0).min(100.0);
+                                callback(Progress {
+                                    task_id: Some(task_id),
+                                    percent: percent as f32,
+                                    speed: speed.clone(),
+                                    eta_secs: None,
+                                    state: "running".to_string(),
+                                    message: None,
+                                });
+                            }
+                        }
+                    }
+                } else if line.starts_with("speed=") {
+                    speed = line
+                        .strip_prefix("speed=")
+                        .unwrap_or_default()
+                        .trim()
+                        .to_string();
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                break;
             }
         }
 
         if cancel_rx.try_recv().is_ok() {
             let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_handle.join();
+            let _ = stderr_handle.join();
             callback(Progress {
+                task_id: Some(task_id),
                 percent: 0.0,
                 speed: String::new(),
                 eta_secs: None,
@@ -104,9 +133,11 @@ pub(crate) fn execute_task_blocking(
         }
     }
 
+    let _ = stdout_handle.join();
+
     let status = child.wait().map_err(|e| {
         let error = CoreError::FFmpegFailed(e.to_string());
-        report_failure(&callback, error.to_string());
+        report_failure(&callback, task_id, error.to_string());
         error
     })?;
     if !status.success() {
@@ -116,11 +147,13 @@ pub(crate) fn execute_task_blocking(
             status,
             stderr_text.trim()
         );
-        report_failure(&callback, message.clone());
+        report_failure(&callback, task_id, message.clone());
         return Err(CoreError::FFmpegFailed(message).into());
     }
+    let _ = stderr_handle.join();
 
     callback(Progress {
+        task_id: Some(task_id),
         percent: 100.0,
         speed,
         eta_secs: Some(0),
@@ -131,8 +164,9 @@ pub(crate) fn execute_task_blocking(
     Ok(())
 }
 
-fn report_failure(callback: &ProgressFn, message: String) {
+fn report_failure(callback: &ProgressFn, task_id: u64, message: String) {
     callback(Progress {
+        task_id: Some(task_id),
         percent: 0.0,
         speed: String::new(),
         eta_secs: None,
@@ -142,7 +176,7 @@ fn report_failure(callback: &ProgressFn, message: String) {
 }
 
 fn spawn_ffmpeg(args: &[String]) -> Result<Child> {
-    Command::new("ffmpeg")
+    Command::new(ffmpeg_path())
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -224,6 +258,7 @@ fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
         }
         Operation::RemoveAudio => {
             args.extend(["-an".to_string()]);
+            args.extend(["-c:v".to_string(), "copy".to_string()]);
         }
     }
 

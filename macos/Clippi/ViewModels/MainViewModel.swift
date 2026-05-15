@@ -5,7 +5,9 @@ import Combine
 @MainActor
 class MainViewModel: ObservableObject {
     @Published var fileInfo: FileInfo?
-    @Published var selectedOperation: OperationType = .trim
+    @Published var selectedOperation: OperationType = .trim {
+        didSet { refreshOutputPath() }
+    }
     @Published var isProcessing = false
     @Published var progress: Double = 0
     @Published var statusMessage = ""
@@ -22,10 +24,14 @@ class MainViewModel: ObservableObject {
     @Published var targetResolution: Resolution = .p1080
 
     // Audio settings
-    @Published var audioFormat: AudioFormat = .mp3
+    @Published var audioFormat: AudioFormat = .mp3 {
+        didSet { refreshOutputPath() }
+    }
 
     // Output
-    @Published var outputFormat: OutputFormat = .mp4
+    @Published var outputFormat: OutputFormat = .mp4 {
+        didSet { refreshOutputPath() }
+    }
     @Published var outputPath: String = ""
 
     private var currentTaskId: UInt64 = 0
@@ -248,8 +254,20 @@ class MainViewModel: ObservableObject {
         let url = URL(fileURLWithPath: input)
         let name = url.deletingPathExtension().lastPathComponent
         let dir = url.deletingLastPathComponent().path
-        let ext = outputFormat.rawValue.lowercased()
+        let ext = outputExtension()
         return "\(dir)/\(name)_output.\(ext)"
+    }
+
+    private func refreshOutputPath() {
+        guard let path = fileInfo?.path else { return }
+        outputPath = generateOutputPath(input: path)
+    }
+
+    private func outputExtension() -> String {
+        if selectedOperation == .extractAudio {
+            return audioFormat.rawValue.lowercased()
+        }
+        return outputFormat.rawValue.lowercased()
     }
 
     private func showError(_ message: String) {

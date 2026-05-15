@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -19,6 +20,7 @@ namespace Clippi
         public MainWindow()
         {
             this.InitializeComponent();
+            ViewModel.PropertyChanged += OnViewModelPropertyChanged;
             AppWindow.Resize(new SizeInt32(700, 600));
         }
 
@@ -103,6 +105,7 @@ namespace Clippi
                 4 => "removeAudio",
                 _ => "trim"
             };
+            UpdateOutputPath();
         }
 
         private void OnFormatChanged(object sender, SelectionChangedEventArgs e)
@@ -157,7 +160,7 @@ namespace Clippi
             if (folder != null)
             {
                 var fileName = Path.GetFileNameWithoutExtension(ViewModel.FileName);
-                ViewModel.OutputPath = Path.Combine(folder.Path, $"{fileName}_output.{ViewModel.OutputFormat}");
+                ViewModel.OutputPath = Path.Combine(folder.Path, $"{fileName}_output.{ViewModel.GetOutputExtension()}");
             }
         }
 
@@ -172,13 +175,27 @@ namespace Clippi
         private void OnCancelClick(object sender, RoutedEventArgs e)
         {
             ViewModel.CancelProcessing();
-            ProgressPanel.Visibility = Visibility.Collapsed;
-            StartButton.Visibility = Visibility.Visible;
         }
 
         private void UpdateUI()
         {
             StartButton.Visibility = ViewModel.HasFile ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.IsProcessing))
+            {
+                UpdateProcessingUI();
+            }
+        }
+
+        private void UpdateProcessingUI()
+        {
+            ProgressPanel.Visibility = ViewModel.IsProcessing ? Visibility.Visible : Visibility.Collapsed;
+            StartButton.Visibility = !ViewModel.IsProcessing && ViewModel.HasFile
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
 
         private void UpdateOutputPath()
@@ -187,7 +204,7 @@ namespace Clippi
             {
                 var dir = Path.GetDirectoryName(ViewModel.FilePath) ?? "";
                 var name = Path.GetFileNameWithoutExtension(ViewModel.FileName);
-                ViewModel.OutputPath = Path.Combine(dir, $"{name}_output.{ViewModel.OutputFormat}");
+                ViewModel.OutputPath = Path.Combine(dir, $"{name}_output.{ViewModel.GetOutputExtension()}");
             }
         }
     }

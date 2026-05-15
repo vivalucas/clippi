@@ -34,7 +34,6 @@ clippi/
 │   │   ├── gpu.rs                 # GPU 探测
 │   │   ├── task.rs                # 任务执行
 │   │   ├── queue.rs               # 队列管理
-│   │   ├── progress.rs            # 进度解析
 │   │   ├── types.rs               # 数据类型定义
 │   │   └── error.rs               # 错误类型
 │   └── Cargo.toml
@@ -96,8 +95,8 @@ clippi/
 
 ```bash
 # 创建版本 tag 并推送，触发 CI/CD 构建
-git tag v0.0.3
-git push origin v0.0.3
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 构建完成后，可以在 GitHub Releases 页面下载对应平台的安装包。

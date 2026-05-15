@@ -56,6 +56,14 @@ jobs:
                      ONLY_ACTIVE_ARCH=YES \
                      CODE_SIGNING_ALLOWED=NO
 
+      - name: Bundle ffmpeg
+        run: |
+          mkdir -p build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg
+          cp ffmpeg/macos-*/ffmpeg build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/
+          cp ffmpeg/macos-*/ffprobe build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/
+          chmod +x build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/ffmpeg
+          chmod +x build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/ffprobe
+
       - name: Create DMG
         run: |
           mkdir -p dist

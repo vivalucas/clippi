@@ -14,19 +14,19 @@ namespace Clippi
         private delegate void ProgressCallback(IntPtr progressJson);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr clippi_probe_file(string path);
+        private static extern IntPtr clippi_probe_file(IntPtr path);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr clippi_detect_gpu();
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern ulong clippi_run_task(string config_json, ProgressCallback callback);
+        private static extern ulong clippi_run_task(IntPtr config_json, ProgressCallback callback);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern int clippi_cancel_task(ulong task_id);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr clippi_queue_tasks(string tasks_json, ProgressCallback callback);
+        private static extern IntPtr clippi_queue_tasks(IntPtr tasks_json, ProgressCallback callback);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern void clippi_free_string(IntPtr s);
@@ -36,13 +36,23 @@ namespace Clippi
         /// </summary>
         public static string? ProbeFile(string path)
         {
-            IntPtr result = clippi_probe_file(path);
-            if (result == IntPtr.Zero)
-                return null;
+            IntPtr pathPtr = Marshal.StringToCoTaskMemUTF8(path);
+            IntPtr result = IntPtr.Zero;
 
-            string json = Marshal.PtrToStringAnsi(result) ?? "";
-            clippi_free_string(result);
-            return json;
+            try
+            {
+                result = clippi_probe_file(pathPtr);
+                if (result == IntPtr.Zero)
+                    return null;
+
+                return Marshal.PtrToStringUTF8(result) ?? "";
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(pathPtr);
+                if (result != IntPtr.Zero)
+                    clippi_free_string(result);
+            }
         }
 
         /// <summary>
@@ -51,7 +61,7 @@ namespace Clippi
         public static string DetectGpu()
         {
             IntPtr result = clippi_detect_gpu();
-            string json = Marshal.PtrToStringAnsi(result) ?? "";
+            string json = Marshal.PtrToStringUTF8(result) ?? "";
             clippi_free_string(result);
             return json;
         }
@@ -61,11 +71,19 @@ namespace Clippi
         /// </summary>
         public static ulong RunTask(string configJson, Action<string> callback)
         {
+            IntPtr configPtr = Marshal.StringToCoTaskMemUTF8(configJson);
             _managedProgressCallback = callback;
-            ulong taskId = clippi_run_task(configJson, _nativeProgressCallback);
-            if (taskId == 0)
-                _managedProgressCallback = null;
-            return taskId;
+            try
+            {
+                ulong taskId = clippi_run_task(configPtr, _nativeProgressCallback);
+                if (taskId == 0)
+                    _managedProgressCallback = null;
+                return taskId;
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(configPtr);
+            }
         }
 
         /// <summary>
@@ -98,7 +116,7 @@ namespace Clippi
             if (progressJson == IntPtr.Zero)
                 return;
 
-            string json = Marshal.PtrToStringAnsi(progressJson) ?? "";
+            string json = Marshal.PtrToStringUTF8(progressJson) ?? "";
             _managedProgressCallback?.Invoke(json);
         }
     }

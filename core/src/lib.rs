@@ -10,6 +10,7 @@ mod queue;
 mod error;
 mod types;
 mod ffi;
+mod binaries;
 
 pub use error::CoreError;
 pub use types::*;

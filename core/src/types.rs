@@ -67,6 +67,7 @@ pub enum AudioFormat {
 /// Progress information from ffmpeg
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Progress {
+    pub task_id: Option<u64>,
     pub percent: f32,
     pub speed: String,
     pub eta_secs: Option<u64>,

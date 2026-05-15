@@ -1,5 +1,6 @@
 use std::process::Command;
 use crate::types::GpuCapability;
+use crate::binaries::ffmpeg_path;
 
 /// Detect GPU hardware acceleration capability
 pub fn detect_gpu() -> GpuCapability {
@@ -57,7 +58,7 @@ fn detect_gpu_windows() -> GpuCapability {
 
 /// Test if an encoder is available
 fn test_encoder(encoder: &str) -> bool {
-    Command::new("ffmpeg")
+    Command::new(ffmpeg_path())
         .args(["-f", "lavfi", "-i", "color=c=black:s=64x64:d=0.1", "-c:v", encoder, "-f", "null", "-"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

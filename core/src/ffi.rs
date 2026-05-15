@@ -15,7 +15,12 @@ use crate::gpu::detect_gpu;
 use crate::task;
 use crate::queue;
 
-static TASK_HANDLES: Lazy<Mutex<HashMap<u64, tokio::sync::oneshot::Sender<()>>>> =
+struct TaskState {
+    cancel_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    terminal: bool,
+}
+
+static TASK_HANDLES: Lazy<Mutex<HashMap<u64, TaskState>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Probe file metadata - returns JSON string
@@ -77,6 +82,18 @@ pub extern "C" fn clippi_run_task(
     };
 
     let callback_box: ProgressFn = Arc::new(move |progress| {
+        if matches!(progress.state.as_str(), "completed" | "failed" | "cancelled") {
+            if let Some(task_id) = progress.task_id {
+                if let Ok(mut handles) = TASK_HANDLES.lock() {
+                    if handles.remove(&task_id).is_none() {
+                        handles.insert(task_id, TaskState {
+                            cancel_tx: None,
+                            terminal: true,
+                        });
+                    }
+                }
+            }
+        }
         let json = serde_json::to_string(&progress).unwrap_or_default();
         let c_str = CString::new(json).unwrap();
         callback(c_str.as_ptr());
@@ -86,7 +103,15 @@ pub extern "C" fn clippi_run_task(
         Ok(handle) => {
             let id = handle.id;
             if let Ok(mut handles) = TASK_HANDLES.lock() {
-                handles.insert(id, handle.cancel_tx);
+                if handles.get(&id).is_some_and(|state| state.terminal) {
+                    handles.remove(&id);
+                    return 0;
+                } else {
+                    handles.insert(id, TaskState {
+                        cancel_tx: Some(handle.cancel_tx),
+                        terminal: false,
+                    });
+                }
             }
             id
         }
@@ -99,9 +124,11 @@ pub extern "C" fn clippi_run_task(
 #[no_mangle]
 pub extern "C" fn clippi_cancel_task(task_id: u64) -> i32 {
     if let Ok(mut handles) = TASK_HANDLES.lock() {
-        if let Some(cancel_tx) = handles.remove(&task_id) {
-            let _ = cancel_tx.send(());
-            return 1;
+        if let Some(state) = handles.get_mut(&task_id) {
+            if let Some(cancel_tx) = state.cancel_tx.take() {
+                let _ = cancel_tx.send(());
+                return 1;
+            }
         }
     }
     0
