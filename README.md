@@ -1,17 +1,28 @@
 # Clippi
 
-Clippi 是一款跨平台、原生图形界面的视频处理工具，以 ffmpeg 为处理引擎，对普通用户隐藏命令行复杂度，同时为技术用户保留完整的控制能力。
+Clippi 是一款跨平台原生桌面视频处理工具。它以 ffmpeg / ffprobe 为处理引擎，用 macOS SwiftUI 和 Windows WinUI 3 提供图形界面，让常见视频处理任务不再依赖命令行。
 
-## 特性
+## 当前功能
 
-- 拖拽导入文件，自动读取媒体信息
-- 视频裁剪（快速模式 / 精确模式）
-- 格式转换（mp4 / mkv / mov / webm）
-- 分辨率缩放（4K / 1080p / 720p / 480p）
-- 音频处理（提取音频 / 去除音频）
-- GPU 硬件加速（VideoToolbox / NVENC / QSV）
-- 批量队列处理
-- 实时进度显示
+- 拖拽或选择单个媒体文件
+- 自动读取分辨率、时长、编码、帧率和码率
+- 视频裁剪：快速模式（复制流）和精确模式（重编码）
+- 格式转换：MP4 / MKV / MOV / WebM
+- 分辨率缩放：4K / 1080p / 720p / 480p
+- 音频处理：提取 MP3 / AAC / WAV，或移除音轨
+- GPU 编码探测：macOS VideoToolbox，Windows NVENC / QSV
+- 处理进度、速度、完成、失败和取消状态回传
+
+> 批量队列和更完整的高级 ffmpeg 参数控制仍在后续规划中；当前桌面 UI 以单文件处理为主。
+
+## 下载与分发
+
+正式版本通过 GitHub Releases 分发：
+
+- macOS：`Clippi-macos.dmg`
+- Windows：`Clippi-windows.zip`
+
+Release 构建会把 ffmpeg / ffprobe 一起打包进应用产物；用户不需要额外安装 ffmpeg。开发环境也可以通过 `scripts/download_ffmpeg.*` 下载本地二进制，Rust 核心库会优先查找应用内置路径，其次查找 `CLIPPI_FFMPEG_DIR`，最后回退到系统 `PATH`。
 
 ## 技术栈
 
@@ -20,7 +31,7 @@ Clippi 是一款跨平台、原生图形界面的视频处理工具，以 ffmpeg
 | macOS UI | Swift + SwiftUI |
 | Windows UI | C# + WinUI 3 |
 | 核心库 | Rust |
-| 处理引擎 | ffmpeg |
+| 处理引擎 | ffmpeg / ffprobe |
 
 ## 项目结构
 
@@ -32,8 +43,9 @@ clippi/
 │   │   ├── ffi.rs                 # C FFI 接口
 │   │   ├── probe.rs               # ffprobe 文件信息读取
 │   │   ├── gpu.rs                 # GPU 探测
-│   │   ├── task.rs                # 任务执行
-│   │   ├── queue.rs               # 队列管理
+│   │   ├── task.rs                # ffmpeg 任务执行
+│   │   ├── queue.rs               # 串行队列基础能力
+│   │   ├── binaries.rs            # ffmpeg / ffprobe 路径解析
 │   │   ├── types.rs               # 数据类型定义
 │   │   └── error.rs               # 错误类型
 │   └── Cargo.toml
@@ -41,65 +53,73 @@ clippi/
 │   ├── Clippi.xcodeproj/
 │   └── Clippi/
 │       ├── ClippiApp.swift        # App 入口
+│       ├── ClippiCore.h           # Swift 桥接头
 │       ├── FFI/ClippiFFI.swift    # Swift FFI 封装
-│       ├── ViewModels/            # ViewModel 层
-│       └── Views/                 # View 层
+│       ├── ViewModels/
+│       └── Views/
 ├── windows/                       # Windows WinUI 3 项目
 │   └── Clippi/
-│       ├── App.xaml/cs            # App 入口
-│       ├── MainWindow.xaml/cs     # 主窗口
-│       ├── ViewModels/            # ViewModel 层
+│       ├── App.xaml/cs
+│       ├── MainWindow.xaml/cs
+│       ├── ViewModels/
 │       └── ClippiCore.cs          # C# P/Invoke 封装
-├── scripts/                       # 构建脚本
-│   ├── download_ffmpeg.sh         # macOS/Linux ffmpeg 下载
-│   ├── download_ffmpeg.ps1        # Windows ffmpeg 下载
-│   ├── build-core.sh              # Rust 核心库构建 (macOS/Linux)
-│   └── build-core.ps1             # Rust 核心库构建 (Windows)
-├── .github/workflows/             # CI/CD
+├── scripts/
+│   ├── download_ffmpeg.sh
+│   ├── download_ffmpeg.ps1
+│   ├── build-core.sh
+│   └── build-core.ps1
+├── .github/workflows/
 │   ├── build-macos.yml
 │   └── build-windows.yml
-├── LICENSE                        # GPL-2.0
+├── LICENSE
 └── README.md
 ```
 
-## 构建
+## 本地开发
 
-项目使用 GitHub Actions 自动构建。推送 `v*` 格式的 tag 会触发构建流程。
+### 环境要求
 
-### 本地开发
+- Rust stable
+- macOS：Xcode 15+
+- Windows：Visual Studio 2022 + .NET 8 SDK
+- ffmpeg / ffprobe：可通过脚本下载，或放入 `CLIPPI_FFMPEG_DIR`
 
-#### 环境要求
-
-- Rust (stable)
-- ffmpeg (通过脚本下载)
-- macOS: Xcode 15+
-- Windows: Visual Studio 2022 + .NET 8 SDK
-
-#### 构建步骤
+### 构建步骤
 
 ```bash
-# 1. 下载 ffmpeg
-./scripts/download_ffmpeg.sh      # macOS/Linux
+# 1. 下载 ffmpeg / ffprobe
+./scripts/download_ffmpeg.sh      # macOS
 .\scripts\download_ffmpeg.ps1     # Windows
 
 # 2. 构建 Rust 核心库
-./scripts/build-core.sh           # macOS/Linux
+./scripts/build-core.sh           # macOS
 .\scripts\build-core.ps1          # Windows
 
-# 3. 打开 IDE 项目
-# macOS: 打开 macos/Clippi.xcodeproj
-# Windows: 打开 windows/Clippi/Clippi.csproj
+# 3. 打开原生项目
+# macOS: macos/Clippi.xcodeproj
+# Windows: windows/Clippi/Clippi.csproj
 ```
 
-### 发布
+## CI/CD
+
+GitHub Actions 会在以下场景自动构建：
+
+- 推送到 `main`：构建 macOS / Windows artifact，用于验证主分支
+- 推送 `v*` tag：构建并上传 Release 资产
+
+发布示例：
 
 ```bash
-# 创建版本 tag 并推送，触发 CI/CD 构建
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-构建完成后，可以在 GitHub Releases 页面下载对应平台的安装包。
+## 当前限制
+
+- 桌面 UI 当前只开放单文件处理
+- Windows 产物目前是 zip 包，不是安装器
+- macOS 产物未签名，首次运行可能需要按系统提示允许打开
+- 高级 ffmpeg 参数编辑、命令预览、日志展开和批量任务管理仍待完善
 
 ## 许可证
 
