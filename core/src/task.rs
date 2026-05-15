@@ -1,5 +1,5 @@
 use std::io::{BufRead, BufReader, Read};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use anyhow::Result;
 use crate::probe::probe_file;
@@ -10,86 +10,145 @@ static TASK_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 /// Run a single ffmpeg task
 pub fn run_task(config: TaskConfig, callback: ProgressFn) -> Result<TaskHandle> {
-    let id = TASK_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let id = next_task_id();
     validate_config(&config)?;
     let duration = task_duration_secs(&config);
     let args = build_ffmpeg_args(&config)?;
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
     std::thread::spawn(move || {
-        let mut cancel_rx = cancel_rx;
-        let mut child = Command::new("ffmpeg")
-            .args(&args)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| CoreError::FFmpegFailed(e.to_string()))?;
-
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg progress".to_string()))?;
-        let stderr = child.stderr.take().unwrap();
-        let stderr_handle = std::thread::spawn(move || {
-            let mut stderr_text = String::new();
-            let mut reader = BufReader::new(stderr);
-            let _ = reader.read_to_string(&mut stderr_text);
-            stderr_text
-        });
-
-        let reader = BufReader::new(stdout);
-        let mut speed = String::new();
-
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                if line.starts_with("out_time_us=") {
-                    if let Some(time_str) = line.strip_prefix("out_time_us=") {
-                        if let Ok(time_us) = time_str.trim().parse::<f64>() {
-                            if duration > 0.0 {
-                                let percent = (time_us / 1_000_000.0 / duration * 100.0).min(100.0);
-                                callback(Progress {
-                                    percent: percent as f32,
-                                    speed: speed.clone(),
-                                    eta_secs: None,
-                                });
-                            }
-                        }
-                    }
-                } else if line.starts_with("speed=") {
-                    speed = line
-                        .strip_prefix("speed=")
-                        .unwrap_or_default()
-                        .trim()
-                        .to_string();
-                }
-            }
-
-            if cancel_rx.try_recv().is_ok() {
-                let _ = child.kill();
-                return Err(CoreError::Cancelled);
-            }
-        }
-
-        let status = child.wait().map_err(|e| CoreError::FFmpegFailed(e.to_string()))?;
-        if !status.success() {
-            let stderr_text = stderr_handle.join().unwrap_or_default();
-            return Err(CoreError::FFmpegFailed(format!(
-                "ffmpeg exited with status {}: {}",
-                status,
-                stderr_text.trim()
-            )));
-        }
-
-        callback(Progress {
-            percent: 100.0,
-            speed,
-            eta_secs: Some(0),
-        });
-        Ok(())
+        let _ = execute_task_blocking(args, duration, cancel_rx, callback);
     });
 
     Ok(TaskHandle { id, cancel_tx })
+}
+
+pub(crate) fn next_task_id() -> u64 {
+    TASK_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
+pub(crate) fn prepare_task(config: &TaskConfig) -> Result<(Vec<String>, f64)> {
+    validate_config(config)?;
+    Ok((build_ffmpeg_args(config)?, task_duration_secs(config)))
+}
+
+pub(crate) fn execute_task_blocking(
+    args: Vec<String>,
+    duration: f64,
+    mut cancel_rx: tokio::sync::oneshot::Receiver<()>,
+    callback: ProgressFn,
+) -> Result<()> {
+    let mut child = match spawn_ffmpeg(&args) {
+        Ok(child) => child,
+        Err(error) => {
+            report_failure(&callback, error.to_string());
+            return Err(error);
+        }
+    };
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg progress".to_string()))
+        .map_err(|error| {
+            report_failure(&callback, error.to_string());
+            error
+        })?;
+    let stderr = child.stderr.take().unwrap();
+    let stderr_handle = std::thread::spawn(move || {
+        let mut stderr_text = String::new();
+        let mut reader = BufReader::new(stderr);
+        let _ = reader.read_to_string(&mut stderr_text);
+        stderr_text
+    });
+
+    let reader = BufReader::new(stdout);
+    let mut speed = String::new();
+
+    for line in reader.lines() {
+        if let Ok(line) = line {
+            if line.starts_with("out_time_us=") {
+                if let Some(time_str) = line.strip_prefix("out_time_us=") {
+                    if let Ok(time_us) = time_str.trim().parse::<f64>() {
+                        if duration > 0.0 {
+                            let percent = (time_us / 1_000_000.0 / duration * 100.0).min(100.0);
+                            callback(Progress {
+                                percent: percent as f32,
+                                speed: speed.clone(),
+                                eta_secs: None,
+                                state: "running".to_string(),
+                                message: None,
+                            });
+                        }
+                    }
+                }
+            } else if line.starts_with("speed=") {
+                speed = line
+                    .strip_prefix("speed=")
+                    .unwrap_or_default()
+                    .trim()
+                    .to_string();
+            }
+        }
+
+        if cancel_rx.try_recv().is_ok() {
+            let _ = child.kill();
+            callback(Progress {
+                percent: 0.0,
+                speed: String::new(),
+                eta_secs: None,
+                state: "cancelled".to_string(),
+                message: Some("Task cancelled".to_string()),
+            });
+            return Err(CoreError::Cancelled.into());
+        }
+    }
+
+    let status = child.wait().map_err(|e| {
+        let error = CoreError::FFmpegFailed(e.to_string());
+        report_failure(&callback, error.to_string());
+        error
+    })?;
+    if !status.success() {
+        let stderr_text = stderr_handle.join().unwrap_or_default();
+        let message = format!(
+            "ffmpeg exited with status {}: {}",
+            status,
+            stderr_text.trim()
+        );
+        report_failure(&callback, message.clone());
+        return Err(CoreError::FFmpegFailed(message).into());
+    }
+
+    callback(Progress {
+        percent: 100.0,
+        speed,
+        eta_secs: Some(0),
+        state: "completed".to_string(),
+        message: None,
+    });
+
+    Ok(())
+}
+
+fn report_failure(callback: &ProgressFn, message: String) {
+    callback(Progress {
+        percent: 0.0,
+        speed: String::new(),
+        eta_secs: None,
+        state: "failed".to_string(),
+        message: Some(message),
+    });
+}
+
+fn spawn_ffmpeg(args: &[String]) -> Result<Child> {
+    Command::new("ffmpeg")
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| CoreError::FFmpegFailed(e.to_string()).into())
 }
 
 /// Cancel a running task

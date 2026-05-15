@@ -70,6 +70,8 @@ pub struct Progress {
     pub percent: f32,
     pub speed: String,
     pub eta_secs: Option<u64>,
+    pub state: String,
+    pub message: Option<String>,
 }
 
 /// Callback function type for progress reporting

@@ -7,7 +7,6 @@ mod probe;
 mod gpu;
 mod task;
 mod queue;
-mod progress;
 mod error;
 mod types;
 mod ffi;

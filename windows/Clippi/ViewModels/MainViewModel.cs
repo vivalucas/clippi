@@ -339,6 +339,23 @@ namespace Clippi.ViewModels
                     Progress = percent.GetDouble();
                 }
 
+                if (root.TryGetProperty("state", out var state) && state.ValueKind == JsonValueKind.String)
+                {
+                    var stateText = state.GetString();
+                    if (stateText == "failed" || stateText == "cancelled")
+                    {
+                        var message = root.TryGetProperty("message", out var messageElement) && messageElement.ValueKind == JsonValueKind.String
+                            ? messageElement.GetString()
+                            : "任务处理失败";
+
+                        IsProcessing = false;
+                        _currentTaskId = 0;
+                        StatusMessage = message ?? "任务处理失败";
+                        ClippiCore.ClearProgressCallback();
+                        return;
+                    }
+                }
+
                 if (root.TryGetProperty("speed", out var speed) && speed.ValueKind == JsonValueKind.String)
                 {
                     var speedText = speed.GetString();
