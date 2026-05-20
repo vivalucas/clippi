@@ -61,7 +61,10 @@ namespace Clippi
         public static string DetectGpu()
         {
             IntPtr result = clippi_detect_gpu();
-            string json = Marshal.PtrToStringUTF8(result) ?? "";
+            if (result == IntPtr.Zero)
+                return "{}";
+
+            string json = Marshal.PtrToStringUTF8(result) ?? "{}";
             clippi_free_string(result);
             return json;
         }

@@ -47,14 +47,21 @@ namespace Clippi
 
         private async void OnFileDrop(object sender, DragEventArgs e)
         {
-            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            try
             {
-                var items = await e.DataView.GetStorageItemsAsync();
-                if (items.Count > 0 && items[0] is StorageFile file)
+                if (e.DataView.Contains(StandardDataFormats.StorageItems))
                 {
-                    ViewModel.ProbeFile(file.Path);
-                    UpdateUI();
+                    var items = await e.DataView.GetStorageItemsAsync();
+                    if (items.Count > 0 && items[0] is StorageFile file)
+                    {
+                        await ViewModel.ProbeFileAsync(file.Path);
+                        UpdateUI();
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                ViewModel.StatusMessage = $"读取文件失败: {ex.Message}";
             }
         }
 
@@ -66,23 +73,30 @@ namespace Clippi
 
         private async void OnSelectFileTapped(object sender, TappedRoutedEventArgs e)
         {
-            var picker = new FileOpenPicker();
-            picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
-            picker.FileTypeFilter.Add(".mp4");
-            picker.FileTypeFilter.Add(".mkv");
-            picker.FileTypeFilter.Add(".mov");
-            picker.FileTypeFilter.Add(".webm");
-            picker.FileTypeFilter.Add(".avi");
-
-            // WinUI 3 requires HWND
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-            var file = await picker.PickSingleFileAsync();
-            if (file != null)
+            try
             {
-                ViewModel.ProbeFile(file.Path);
-                UpdateUI();
+                var picker = new FileOpenPicker();
+                picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
+                picker.FileTypeFilter.Add(".mp4");
+                picker.FileTypeFilter.Add(".mkv");
+                picker.FileTypeFilter.Add(".mov");
+                picker.FileTypeFilter.Add(".webm");
+                picker.FileTypeFilter.Add(".avi");
+
+                // WinUI 3 requires HWND
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+                var file = await picker.PickSingleFileAsync();
+                if (file != null)
+                {
+                    await ViewModel.ProbeFileAsync(file.Path);
+                    UpdateUI();
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewModel.StatusMessage = $"选择文件失败: {ex.Message}";
             }
         }
 
@@ -150,17 +164,24 @@ namespace Clippi
 
         private async void OnSelectOutputPath(object sender, RoutedEventArgs e)
         {
-            var picker = new FolderPicker();
-            picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
-
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-            var folder = await picker.PickSingleFolderAsync();
-            if (folder != null)
+            try
             {
-                var fileName = Path.GetFileNameWithoutExtension(ViewModel.FileName);
-                ViewModel.OutputPath = Path.Combine(folder.Path, $"{fileName}_output.{ViewModel.GetOutputExtension()}");
+                var picker = new FolderPicker();
+                picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
+
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+                var folder = await picker.PickSingleFolderAsync();
+                if (folder != null)
+                {
+                    var fileName = Path.GetFileNameWithoutExtension(ViewModel.FileName);
+                    ViewModel.OutputPath = Path.Combine(folder.Path, $"{fileName}_output.{ViewModel.GetOutputExtension()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewModel.StatusMessage = $"选择路径失败: {ex.Message}";
             }
         }
 

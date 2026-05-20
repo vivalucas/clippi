@@ -3,10 +3,14 @@ import Foundation
 /// Swift wrapper for Rust FFI functions
 enum ClippiFFI {
     private static var progressCallback: ((String) -> Void)?
+    private static let callbackLock = NSLock()
     private static let progressThunk: @convention(c) (UnsafePointer<CChar>?) -> Void = { cString in
         guard let cString = cString else { return }
         let jsonString = String(cString: cString)
-        ClippiFFI.progressCallback?(jsonString)
+        callbackLock.lock()
+        let cb = progressCallback
+        callbackLock.unlock()
+        cb?(jsonString)
     }
 
     /// Probe file metadata
@@ -37,10 +41,14 @@ enum ClippiFFI {
     static func runTask(config: [String: Any], callback: @escaping (String) -> Void) -> UInt64 {
         guard let configJson = toJson(config) else { return 0 }
 
+        callbackLock.lock()
         progressCallback = callback
+        callbackLock.unlock()
         let taskId = clippi_run_task(configJson, progressThunk)
         if taskId == 0 {
+            callbackLock.lock()
             progressCallback = nil
+            callbackLock.unlock()
         }
         return taskId
     }
@@ -49,13 +57,17 @@ enum ClippiFFI {
     static func cancelTask(id: UInt64) -> Bool {
         let cancelled = clippi_cancel_task(id) == 1
         if cancelled {
+            callbackLock.lock()
             progressCallback = nil
+            callbackLock.unlock()
         }
         return cancelled
     }
 
     static func clearProgressCallback() {
+        callbackLock.lock()
         progressCallback = nil
+        callbackLock.unlock()
     }
 
     // MARK: - Helpers

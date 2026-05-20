@@ -6,7 +6,7 @@ use std::ptr;
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::collections::HashMap;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use serde_json;
 
 use crate::types::*;
@@ -20,8 +20,8 @@ struct TaskState {
     terminal: bool,
 }
 
-static TASK_HANDLES: Lazy<Mutex<HashMap<u64, TaskState>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static TASK_HANDLES: LazyLock<Mutex<HashMap<u64, TaskState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Probe file metadata - returns JSON string
 /// Caller must free the returned string with `clippi_free_string`
@@ -40,11 +40,11 @@ pub extern "C" fn clippi_probe_file(path: *const c_char) -> *mut c_char {
     match probe_file(path_rust) {
         Ok(info) => {
             let json = serde_json::to_string(&info).unwrap_or_default();
-            CString::new(json).unwrap().into_raw()
+            CString::new(json).unwrap_or_default().into_raw()
         }
         Err(e) => {
             let error = serde_json::json!({"error": e.to_string()});
-            CString::new(error.to_string()).unwrap().into_raw()
+            CString::new(error.to_string()).unwrap_or_default().into_raw()
         }
     }
 }
@@ -55,7 +55,7 @@ pub extern "C" fn clippi_probe_file(path: *const c_char) -> *mut c_char {
 pub extern "C" fn clippi_detect_gpu() -> *mut c_char {
     let capability = detect_gpu();
     let json = serde_json::to_string(&capability).unwrap_or_default();
-    CString::new(json).unwrap().into_raw()
+    CString::new(json).unwrap_or_default().into_raw()
 }
 
 /// Run a task - returns task ID or 0 on error
@@ -85,17 +85,14 @@ pub extern "C" fn clippi_run_task(
         if matches!(progress.state.as_str(), "completed" | "failed" | "cancelled") {
             if let Some(task_id) = progress.task_id {
                 if let Ok(mut handles) = TASK_HANDLES.lock() {
-                    if handles.remove(&task_id).is_none() {
-                        handles.insert(task_id, TaskState {
-                            cancel_tx: None,
-                            terminal: true,
-                        });
+                    if let Some(state) = handles.get_mut(&task_id) {
+                        state.terminal = true;
                     }
                 }
             }
         }
         let json = serde_json::to_string(&progress).unwrap_or_default();
-        let c_str = CString::new(json).unwrap();
+        let c_str = CString::new(json).unwrap_or_default();
         callback(c_str.as_ptr());
     });
 
@@ -103,15 +100,15 @@ pub extern "C" fn clippi_run_task(
         Ok(handle) => {
             let id = handle.id;
             if let Ok(mut handles) = TASK_HANDLES.lock() {
-                if handles.get(&id).is_some_and(|state| state.terminal) {
+                let state = handles.entry(id).or_insert(TaskState {
+                    cancel_tx: None,
+                    terminal: false,
+                });
+                if state.terminal {
                     handles.remove(&id);
                     return 0;
-                } else {
-                    handles.insert(id, TaskState {
-                        cancel_tx: Some(handle.cancel_tx),
-                        terminal: false,
-                    });
                 }
+                state.cancel_tx = Some(handle.cancel_tx);
             }
             id
         }
@@ -158,14 +155,14 @@ pub extern "C" fn clippi_queue_tasks(
 
     let callback_box: ProgressFn = Arc::new(move |progress| {
         let json = serde_json::to_string(&progress).unwrap_or_default();
-        let c_str = CString::new(json).unwrap();
+        let c_str = CString::new(json).unwrap_or_default();
         callback(c_str.as_ptr());
     });
 
     match queue::queue_tasks(tasks, callback_box) {
         Ok(handle) => {
             let json = serde_json::to_string(&handle.task_ids).unwrap_or_default();
-            CString::new(json).unwrap().into_raw()
+            CString::new(json).unwrap_or_default().into_raw()
         }
         Err(_) => ptr::null_mut(),
     }

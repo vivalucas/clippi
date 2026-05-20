@@ -225,20 +225,25 @@ class MainViewModel: ObservableObject {
 
         if let percent = dict["percent"] as? Double {
             progress = percent
-            if percent >= 100 || dict["state"] as? String == "completed" {
+        }
+
+        if let state = dict["state"] as? String {
+            switch state {
+            case "completed":
                 isProcessing = false
                 currentTaskId = 0
                 statusMessage = "处理完成"
                 ClippiFFI.clearProgressCallback()
+                return
+            case "failed", "cancelled":
+                isProcessing = false
+                currentTaskId = 0
+                ClippiFFI.clearProgressCallback()
+                showError(dict["message"] as? String ?? "任务处理失败")
+                return
+            default:
+                break
             }
-        }
-
-        if let state = dict["state"] as? String,
-           ["failed", "cancelled"].contains(state) {
-            isProcessing = false
-            currentTaskId = 0
-            ClippiFFI.clearProgressCallback()
-            showError(dict["message"] as? String ?? "任务处理失败")
         }
 
         if let speed = dict["speed"] as? String, !speed.isEmpty {

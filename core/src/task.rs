@@ -9,6 +9,32 @@ use crate::types::{TaskConfig, Operation, AudioFormat, OutputFormat, TaskHandle,
 use crate::error::CoreError;
 use crate::binaries::ffmpeg_path;
 
+/// RAII wrapper that kills the child process on drop if still running.
+struct KillOnDrop(Option<Child>);
+
+impl KillOnDrop {
+    fn new(child: Child) -> Self {
+        Self(Some(child))
+    }
+
+    fn inner_mut(&mut self) -> &mut Child {
+        self.0.as_mut().expect("child already taken")
+    }
+
+    fn take(&mut self) -> Child {
+        self.0.take().expect("child already taken")
+    }
+}
+
+impl Drop for KillOnDrop {
+    fn drop(&mut self) {
+        if let Some(mut child) = self.0.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
 static TASK_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 /// Run a single ffmpeg task
@@ -43,7 +69,7 @@ pub(crate) fn execute_task_blocking(
     callback: ProgressFn,
 ) -> Result<()> {
     let mut child = match spawn_ffmpeg(&args) {
-        Ok(child) => child,
+        Ok(child) => KillOnDrop::new(child),
         Err(error) => {
             report_failure(&callback, task_id, error.to_string());
             return Err(error);
@@ -51,6 +77,7 @@ pub(crate) fn execute_task_blocking(
     };
 
     let stdout = child
+        .inner_mut()
         .stdout
         .take()
         .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg progress".to_string()))
@@ -58,7 +85,12 @@ pub(crate) fn execute_task_blocking(
             report_failure(&callback, task_id, error.to_string());
             error
         })?;
-    let stderr = child.stderr.take().unwrap();
+    let stderr = child.inner_mut().stderr.take()
+        .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg stderr".to_string()))
+        .map_err(|error| {
+            report_failure(&callback, task_id, error.to_string());
+            error
+        })?;
     let stderr_handle = std::thread::spawn(move || {
         let mut stderr_text = String::new();
         let mut reader = BufReader::new(stderr);
@@ -117,8 +149,9 @@ pub(crate) fn execute_task_blocking(
         }
 
         if cancel_rx.try_recv().is_ok() {
-            let _ = child.kill();
-            let _ = child.wait();
+            let mut raw = child.take();
+            let _ = raw.kill();
+            let _ = raw.wait();
             let _ = stdout_handle.join();
             let _ = stderr_handle.join();
             callback(Progress {
@@ -135,7 +168,7 @@ pub(crate) fn execute_task_blocking(
 
     let _ = stdout_handle.join();
 
-    let status = child.wait().map_err(|e| {
+    let status = child.inner_mut().wait().map_err(|e| {
         let error = CoreError::FFmpegFailed(e.to_string());
         report_failure(&callback, task_id, error.to_string());
         error

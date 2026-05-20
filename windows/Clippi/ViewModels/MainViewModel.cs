@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 
 namespace Clippi.ViewModels
@@ -219,6 +220,11 @@ namespace Clippi.ViewModels
             {
                 StatusMessage = $"读取文件失败: {ex.Message}";
             }
+        }
+
+        public async Task ProbeFileAsync(string path)
+        {
+            await Task.Run(() => ProbeFile(path));
         }
 
         public void StartProcessing()
