@@ -30,6 +30,3 @@ Release/
 
 # Claude Code
 .claude/
-
-# Project log (local only)
-project-log/
