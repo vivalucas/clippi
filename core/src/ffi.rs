@@ -3,10 +3,8 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
-use std::sync::Mutex;
-use std::sync::Arc;
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock, Mutex};
 use serde_json;
 
 use crate::types::*;
@@ -17,11 +15,15 @@ use crate::queue;
 
 struct TaskState {
     cancel_tx: Option<tokio::sync::oneshot::Sender<()>>,
-    terminal: bool,
 }
 
-static TASK_HANDLES: LazyLock<Mutex<HashMap<u64, TaskState>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+#[derive(Default)]
+struct TaskRegistry {
+    handles: HashMap<u64, TaskState>,
+}
+
+static TASK_REGISTRY: LazyLock<Mutex<TaskRegistry>> =
+    LazyLock::new(|| Mutex::new(TaskRegistry::default()));
 
 /// Probe file metadata - returns JSON string
 /// Caller must free the returned string with `clippi_free_string`
@@ -81,13 +83,27 @@ pub extern "C" fn clippi_run_task(
         Err(_) => return 0,
     };
 
+    let (args, duration) = match task::prepare_task(&config) {
+        Ok(prepared) => prepared,
+        Err(_) => return 0,
+    };
+
+    let id = task::next_task_id();
+    let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
+
+    if let Ok(mut registry) = TASK_REGISTRY.lock() {
+        registry.handles.insert(id, TaskState {
+            cancel_tx: Some(cancel_tx),
+        });
+    } else {
+        return 0;
+    }
+
     let callback_box: ProgressFn = Arc::new(move |progress| {
         if matches!(progress.state.as_str(), "completed" | "failed" | "cancelled") {
             if let Some(task_id) = progress.task_id {
-                if let Ok(mut handles) = TASK_HANDLES.lock() {
-                    if let Some(state) = handles.get_mut(&task_id) {
-                        state.terminal = true;
-                    }
+                if let Ok(mut registry) = TASK_REGISTRY.lock() {
+                    registry.handles.remove(&task_id);
                 }
             }
         }
@@ -96,23 +112,16 @@ pub extern "C" fn clippi_run_task(
         callback(c_str.as_ptr());
     });
 
-    match task::run_task(config, callback_box) {
-        Ok(handle) => {
-            let id = handle.id;
-            if let Ok(mut handles) = TASK_HANDLES.lock() {
-                let state = handles.entry(id).or_insert(TaskState {
-                    cancel_tx: None,
-                    terminal: false,
-                });
-                if state.terminal {
-                    handles.remove(&id);
-                    return 0;
-                }
-                state.cancel_tx = Some(handle.cancel_tx);
+    match std::thread::Builder::new().spawn(move || {
+        let _ = task::execute_task_blocking(id, args, duration, cancel_rx, callback_box);
+    }) {
+        Ok(_) => id,
+        Err(_) => {
+            if let Ok(mut registry) = TASK_REGISTRY.lock() {
+                registry.handles.remove(&id);
             }
-            id
+            0
         }
-        Err(_) => 0,
     }
 }
 
@@ -120,8 +129,8 @@ pub extern "C" fn clippi_run_task(
 /// Returns 1 on success, 0 on failure
 #[no_mangle]
 pub extern "C" fn clippi_cancel_task(task_id: u64) -> i32 {
-    if let Ok(mut handles) = TASK_HANDLES.lock() {
-        if let Some(state) = handles.get_mut(&task_id) {
+    if let Ok(mut registry) = TASK_REGISTRY.lock() {
+        if let Some(mut state) = registry.handles.remove(&task_id) {
             if let Some(cancel_tx) = state.cancel_tx.take() {
                 let _ = cancel_tx.send(());
                 return 1;

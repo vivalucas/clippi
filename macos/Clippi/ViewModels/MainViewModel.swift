@@ -98,11 +98,14 @@ class MainViewModel: ObservableObject {
     }
 
     init() {
-        detectGpu()
+        Task {
+            let result = await Self.loadGpuDetection()
+            applyGpuDetection(result)
+        }
     }
 
-    func detectGpu() {
-        guard let result = ClippiFFI.detectGpu() else { return }
+    private func applyGpuDetection(_ result: [String: Any]?) {
+        guard let result else { return }
         if let encoder = result["video_encoder"] as? String {
             gpuInfo = GpuInfo(encoder: encoder, hwAccel: result["hw_accel"] as? String)
         } else {
@@ -111,23 +114,12 @@ class MainViewModel: ObservableObject {
     }
 
     func probeFile(at url: URL) {
-        guard let result = ClippiFFI.probeFile(path: url.path) else {
-            showError("无法读取文件信息")
-            return
+        let path = url.path
+
+        Task {
+            let result = await Self.loadProbeResult(path: path)
+            applyProbeResult(result, path: path)
         }
-
-        fileInfo = FileInfo(
-            width: result["width"] as? Int ?? 0,
-            height: result["height"] as? Int ?? 0,
-            duration: result["duration_secs"] as? Double ?? 0,
-            codec: result["codec"] as? String ?? "unknown",
-            frameRate: result["frame_rate"] as? Double ?? 0,
-            bitrate: result["bitrate"] as? Int ?? 0,
-            path: url.path
-        )
-
-        endTime = fileInfo?.duration ?? 0
-        outputPath = generateOutputPath(input: url.path)
     }
 
     func startProcessing() {
@@ -246,13 +238,16 @@ class MainViewModel: ObservableObject {
             }
         }
 
+        var message = "处理中..."
         if let speed = dict["speed"] as? String, !speed.isEmpty {
-            statusMessage = "处理中... 速度: \(speed)"
+            message += " 速度: \(speed)"
         }
 
         if let eta = dict["eta_secs"] as? Int {
-            statusMessage += " 剩余: \(eta)秒"
+            message += " 剩余: \(eta)秒"
         }
+
+        statusMessage = message
     }
 
     private func generateOutputPath(input: String) -> String {
@@ -265,6 +260,38 @@ class MainViewModel: ObservableObject {
 
     private func refreshOutputPath() {
         guard let path = fileInfo?.path else { return }
+        outputPath = generateOutputPath(input: path)
+    }
+
+    nonisolated private static func loadGpuDetection() async -> [String: Any]? {
+        await Task.detached {
+            ClippiFFI.detectGpu()
+        }.value
+    }
+
+    nonisolated private static func loadProbeResult(path: String) async -> [String: Any]? {
+        await Task.detached {
+            ClippiFFI.probeFile(path: path)
+        }.value
+    }
+
+    private func applyProbeResult(_ result: [String: Any]?, path: String) {
+        guard let result else {
+            showError("无法读取文件信息")
+            return
+        }
+
+        fileInfo = FileInfo(
+            width: result["width"] as? Int ?? 0,
+            height: result["height"] as? Int ?? 0,
+            duration: result["duration_secs"] as? Double ?? 0,
+            codec: result["codec"] as? String ?? "unknown",
+            frameRate: result["frame_rate"] as? Double ?? 0,
+            bitrate: result["bitrate"] as? Int ?? 0,
+            path: path
+        )
+
+        endTime = fileInfo?.duration ?? 0
         outputPath = generateOutputPath(input: path)
     }
 

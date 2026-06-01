@@ -123,11 +123,12 @@ pub(crate) fn execute_task_blocking(
                         if let Ok(time_us) = time_str.trim().parse::<f64>() {
                             if duration > 0.0 {
                                 let percent = (time_us / 1_000_000.0 / duration * 100.0).min(100.0);
+                                let eta_secs = estimate_eta_secs(duration, percent, &speed);
                                 callback(Progress {
                                     task_id: Some(task_id),
                                     percent: percent as f32,
                                     speed: speed.clone(),
-                                    eta_secs: None,
+                                    eta_secs,
                                     state: "running".to_string(),
                                     message: None,
                                 });
@@ -206,6 +207,23 @@ fn report_failure(callback: &ProgressFn, task_id: u64, message: String) {
         state: "failed".to_string(),
         message: Some(message),
     });
+}
+
+fn estimate_eta_secs(duration: f64, percent: f64, speed: &str) -> Option<u64> {
+    let speed_factor = parse_speed_factor(speed)?;
+    if !(duration.is_finite() && duration > 0.0) || !(percent.is_finite() && percent >= 0.0) {
+        return None;
+    }
+
+    let remaining = duration * (100.0 - percent).max(0.0) / 100.0;
+    let eta = (remaining / speed_factor).ceil();
+    eta.is_finite().then_some(eta as u64)
+}
+
+fn parse_speed_factor(speed: &str) -> Option<f64> {
+    let raw = speed.trim().strip_suffix('x').unwrap_or(speed.trim());
+    let value: f64 = raw.parse().ok()?;
+    (value.is_finite() && value > 0.0).then_some(value)
 }
 
 fn spawn_ffmpeg(args: &[String]) -> Result<Child> {

@@ -36,19 +36,7 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
     let codec = video_stream["codec_name"].as_str().unwrap_or("unknown").to_string();
 
     // Parse frame rate (e.g., "30/1" -> 30.0)
-    let frame_rate = video_stream["r_frame_rate"]
-        .as_str()
-        .and_then(|r| {
-            let parts: Vec<&str> = r.split('/').collect();
-            if parts.len() == 2 {
-                let num: f64 = parts[0].parse().ok()?;
-                let den: f64 = parts[1].parse().ok()?;
-                Some(num / den)
-            } else {
-                None
-            }
-        })
-        .unwrap_or(0.0);
+    let frame_rate = parse_frame_rate(video_stream);
 
     let format = &json["format"];
     let duration_secs = format["duration"]
@@ -69,4 +57,28 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
         frame_rate,
         bitrate,
     })
+}
+
+fn parse_frame_rate(stream: &serde_json::Value) -> f64 {
+    parse_rational(stream.get("r_frame_rate"))
+        .or_else(|| parse_rational(stream.get("avg_frame_rate")))
+        .filter(|rate| rate.is_finite() && *rate > 0.0)
+        .unwrap_or(0.0)
+}
+
+fn parse_rational(value: Option<&serde_json::Value>) -> Option<f64> {
+    let raw = value?.as_str()?;
+    let parts: Vec<&str> = raw.split('/').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+
+    let numerator: f64 = parts[0].parse().ok()?;
+    let denominator: f64 = parts[1].parse().ok()?;
+    if denominator == 0.0 {
+        return None;
+    }
+
+    let rate = numerator / denominator;
+    rate.is_finite().then_some(rate)
 }

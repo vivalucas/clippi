@@ -258,6 +258,58 @@ A 评审（发现） → B 验证 + 修复确认项 + 评审（发现）
 
 B 轮 13 个问题全部确认已修复。
 
+---
+
+## G — 本轮复核
+
+**评审人**：AI 开发助手
+**日期**：2026-05-24
+**范围**：当前主干代码（Rust 核心库、macOS SwiftUI、Windows WinUI 3）
+
+### 发现并确认的问题
+
+#### 问题 1：Windows 把 100% 进度当作完成，可能吞掉终态回调
+
+- **类型**：Bug
+- **严重程度**：中
+- **状态**：待修复
+- **位置**：`windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：`Progress >= 100` 就直接清理任务状态并结束处理，但 Rust 侧仍会在最终 `completed` / `failed` / `cancelled` 事件到达时再发一次终态回调。若 100% 进度先到，后续真正的终态可能被 UI 逻辑提前截断。
+- **复核结论**：成立，建议只以 `state` 作为终态来源。
+
+#### 问题 2：ffprobe 帧率可能返回非有限值，JSON 序列化会失败
+
+- **类型**：Bug
+- **严重程度**：中
+- **状态**：待修复
+- **位置**：`core/src/probe.rs`
+- **描述**：`r_frame_rate` 解析后没有保证结果有限。若出现 `0/0`、`N/A` 或其他异常值，`FileInfo` 里的 `frame_rate` 可能进入 `NaN` / `Infinity`，`serde_json` 会拒绝序列化。
+- **复核结论**：成立，建议回退到 `avg_frame_rate` 或默认 `0.0`。
+
+#### 问题 3：任务终态与句柄注册存在竞态
+
+- **类型**：Bug
+- **严重程度**：中
+- **状态**：待修复
+- **位置**：`core/src/ffi.rs`
+- **描述**：任务可能在 `clippi_run_task` 把 `cancel_tx` 写入 `TASK_HANDLES` 之前就结束，当前代码只在已有句柄上标记 `terminal=true`，缺少“先终态、后注册”的补偿路径。
+- **复核结论**：成立，建议为早到的终态增加独立标记。
+
+#### 问题 4：GPU 探测同步执行，启动会被拖慢
+
+- **类型**：优化 / UX
+- **严重程度**：低
+- **状态**：待优化
+- **位置**：`macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：应用初始化时直接做 ffmpeg 探测，会把首屏启动时间拉长，尤其在磁盘慢或 ffmpeg 首次唤醒时更明显。
+- **复核结论**：成立，建议移到后台异步执行。
+
+### 修复进展
+
+- 已将上述 4 项写入代码。
+- macOS 侧已推进到 Swift 编译和链接阶段，当前只剩本机缺少 Rust 静态库导致的链接阻塞。
+- Windows / Rust 侧仍需要在完整工具链或 CI 上再做一轮验证。
+
 ### C 的独立评审发现
 
 #### 问题 14：macOS `DropAreaView` 重复定义导致编译失败

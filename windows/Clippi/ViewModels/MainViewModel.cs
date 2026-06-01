@@ -35,6 +35,14 @@ namespace Clippi.ViewModels
 
         private ulong _currentTaskId;
         private readonly DispatcherQueue? _dispatcherQueue;
+        private sealed record ProbeResult(
+            string Path,
+            int Width,
+            int Height,
+            double Duration,
+            string Codec,
+            double FrameRate,
+            int Bitrate);
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -170,14 +178,35 @@ namespace Clippi.ViewModels
         public MainViewModel()
         {
             _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-            DetectGpu();
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    var json = ClippiCore.DetectGpu();
+                    DispatchToUi(() => ApplyGpuDetection(json));
+                }
+                catch
+                {
+                    DispatchToUi(() => GpuEncoder = "软件编码");
+                }
+            });
         }
 
-        private void DetectGpu()
+        private void DispatchToUi(Action action)
+        {
+            if (_dispatcherQueue != null && !_dispatcherQueue.HasThreadAccess)
+            {
+                _dispatcherQueue.TryEnqueue(action);
+                return;
+            }
+
+            action();
+        }
+
+        private void ApplyGpuDetection(string json)
         {
             try
             {
-                var json = ClippiCore.DetectGpu();
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
@@ -192,39 +221,58 @@ namespace Clippi.ViewModels
             }
         }
 
-        public void ProbeFile(string path)
+        private ProbeResult? ParseProbeResult(string path)
         {
             try
             {
                 var json = ClippiCore.ProbeFile(path);
-                if (json == null) return;
+                if (json == null) return null;
 
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                FilePath = path;
-                FileName = Path.GetFileName(path);
-                Width = root.GetProperty("width").GetInt32();
-                Height = root.GetProperty("height").GetInt32();
-                Duration = root.GetProperty("duration_secs").GetDouble();
-                Codec = root.GetProperty("codec").GetString() ?? "";
-                FrameRate = root.GetProperty("frame_rate").GetDouble();
-                Bitrate = root.GetProperty("bitrate").TryGetInt64(out long bitrate)
-                    ? (int)Math.Min(bitrate, int.MaxValue)
-                    : 0;
-
-                EndTime = Duration;
-                OutputPath = GenerateOutputPath(path);
+                return new ProbeResult(
+                    path,
+                    root.GetProperty("width").GetInt32(),
+                    root.GetProperty("height").GetInt32(),
+                    root.GetProperty("duration_secs").GetDouble(),
+                    root.GetProperty("codec").GetString() ?? "",
+                    root.GetProperty("frame_rate").GetDouble(),
+                    root.GetProperty("bitrate").TryGetInt64(out long bitrate)
+                        ? (int)Math.Min(bitrate, int.MaxValue)
+                        : 0);
             }
-            catch (Exception ex)
+            catch
             {
-                StatusMessage = $"读取文件失败: {ex.Message}";
+                return null;
             }
         }
 
         public async Task ProbeFileAsync(string path)
         {
-            await Task.Run(() => ProbeFile(path));
+            var result = await Task.Run(() => ParseProbeResult(path));
+            if (result == null)
+            {
+                DispatchToUi(() => StatusMessage = "读取文件失败");
+                return;
+            }
+
+            DispatchToUi(() => ApplyProbeResult(result));
+        }
+
+        private void ApplyProbeResult(ProbeResult result)
+        {
+            FilePath = result.Path;
+            FileName = Path.GetFileName(result.Path);
+            Width = result.Width;
+            Height = result.Height;
+            Duration = result.Duration;
+            Codec = result.Codec;
+            FrameRate = result.FrameRate;
+            Bitrate = result.Bitrate;
+
+            EndTime = Duration;
+            OutputPath = GenerateOutputPath(result.Path);
         }
 
         public void StartProcessing()
@@ -365,22 +413,31 @@ namespace Clippi.ViewModels
                         ClippiCore.ClearProgressCallback();
                         return;
                     }
+
+                    if (stateText == "completed")
+                    {
+                        IsProcessing = false;
+                        _currentTaskId = 0;
+                        StatusMessage = "处理完成";
+                        ClippiCore.ClearProgressCallback();
+                        return;
+                    }
                 }
 
+                var message = "处理中...";
                 if (root.TryGetProperty("speed", out var speed) && speed.ValueKind == JsonValueKind.String)
                 {
                     var speedText = speed.GetString();
                     if (!string.IsNullOrWhiteSpace(speedText))
-                        StatusMessage = $"处理中... 速度: {speedText}";
+                        message += $" 速度: {speedText}";
                 }
 
-                if (Progress >= 100)
+                if (root.TryGetProperty("eta_secs", out var eta) && eta.ValueKind == JsonValueKind.Number && eta.TryGetInt64(out long etaSecs))
                 {
-                    IsProcessing = false;
-                    _currentTaskId = 0;
-                    StatusMessage = "处理完成";
-                    ClippiCore.ClearProgressCallback();
+                    message += $" 剩余: {etaSecs}秒";
                 }
+
+                StatusMessage = message;
             }
             catch (Exception ex)
             {

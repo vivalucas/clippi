@@ -1,9 +1,9 @@
 # 当前状态
 
-> **最后更新**：2026-05-15
+> **最后更新**：2026-05-24
 > **最后更新人**：AI 开发助手
-> **最近开发日志**：2026-05-15 修复构建链路与 FFI 回调
-> **当前可信度**：GitHub Actions macOS / Windows 构建已通过
+> **最近开发日志**：2026-05-24 修复进度终态、probe 兜底和启动阻塞
+> **当前可信度**：本轮代码已更新，待重新验证本地 / CI 编译结果
 
 ## 当前版本
 
@@ -11,7 +11,7 @@
 
 ## 当前阶段
 
-核心功能代码已完成构建链路修复。GitHub Actions 已在 `main` push 上自动触发，并通过 macOS / Windows 构建。
+核心功能代码本轮已做一轮稳定性和体验修复，等待重新跑编译和样本验证，确认未引入回归。
 
 ## 已完成
 
@@ -37,7 +37,8 @@
 
 ## 进行中
 
-- 等待后续功能测试与真实视频样本验证
+- 等待本轮改动的编译验证与真实视频样本验证
+- 复核 Windows 终态回调、ffprobe 帧率兜底、任务句柄竞态、启动阶段阻塞问题
 
 ## 待处理
 
@@ -51,6 +52,8 @@
 - GPU 探测逻辑测试
 - ffmpeg 命令构建测试
 - 进度解析测试
+- probe 帧率异常值测试
+- Windows 终态回调流转测试
 
 ### 低优先级
 
@@ -73,14 +76,14 @@
 
 ## 任务交接
 
-**当前任务**：构建失败排查与修复（已完成）
+**当前任务**：本轮稳定性与体验修复（待验证）
 
-**已完成**：阅读 project-log 与代码；修复 Rust 进度回调、serde 枚举兼容、macOS Xcode target 文件接入、Swift/C# FFI 回调、Windows XAML / WinUI API 问题、CI 构建参数、cc-mimo 第三轮评审确认项；macOS / Windows Actions 已通过
+**已完成**：阅读 project-log 与代码；修复 Rust 进度回调、serde 枚举兼容、macOS Xcode target 文件接入、Swift/C# FFI 回调、Windows XAML / WinUI API 问题、CI 构建参数、cc-mimo 第三轮评审确认项；新增本轮进度终态、probe 兜底、任务句柄竞态和 UI 启动阻塞修复
 
-**未完成**：真实视频样本端到端验证；本地 Rust/.NET 验证仍因本机无 cargo / dotnet 未运行
+**未完成**：真实视频样本端到端验证；本地 Rust/.NET 验证仍因本机无 cargo / dotnet 未运行；本轮改动待重新编译确认
 
 **下一步建议**：补单元测试和样本验证；如继续 UI 打磨，先对照 `11-code-review-log.md` 的构建失败复盘清单
 
-**风险 / 阻塞**：本机缺 Rust 和 .NET；队列串行语义仍需更完整的执行模型测试；macOS 目前 CI 只构建 active architecture
+**风险 / 阻塞**：本机缺 Rust 和 .NET；队列串行语义仍需更完整的执行模型测试；macOS 目前 CI 只构建 active architecture；本地缺少 `core/target/release/libclippi_core.a` 阻塞 Xcode 最终链接；Swift/GPU 异步改动需继续关注警告
 
 **相关文件**：`core/src/task.rs`, `core/src/types.rs`, `macos/Clippi.xcodeproj/project.pbxproj`, `macos/Clippi/FFI/ClippiFFI.swift`, `windows/Clippi/ClippiCore.cs`, `windows/Clippi/MainWindow.xaml`

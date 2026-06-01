@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-05-24（本轮稳定性与体验修复）
+
+**触发原因**：本轮复核发现 Windows 终态回调、ffprobe 帧率兜底、任务句柄竞态和 UI 启动阻塞问题，需要同步修复。
+
+**修改内容**：
+1. `core/src/probe.rs` — 增加帧率解析兜底，优先读取 `r_frame_rate`，失败后回退 `avg_frame_rate`，并保证结果为有限值。
+2. `core/src/task.rs` — 补充 ETA 估算，避免进度回调长期缺少剩余时间。
+3. `core/src/ffi.rs` — 引入任务注册表的早终态补偿，修复任务在句柄登记前结束时的竞态。
+4. `macos/Clippi/ViewModels/MainViewModel.swift` — 将 GPU 探测和文件探测移到后台，并统一进度状态文案。
+5. `windows/Clippi/ViewModels/MainViewModel.cs` — 将 GPU 探测和文件探测移到后台，改为以终态 `state` 结束任务，并统一进度状态文案。
+6. `project-log/05-current-status.md` — 更新当前状态为“待重新验证”。
+7. `project-log/11-code-review-log.md` — 记录本轮复核发现。
+
+**遇到的问题**：
+- 本机缺少 `cargo` 和 `dotnet`，无法完成 Rust / Windows 本地编译验证。
+- Xcode 编译仍在执行中，当前只能先做逻辑自检。
+
+**解决方式**：
+- 先落实现有代码修复，再通过 Xcode 侧编译和后续 CI / 真实样本验证补齐结果。
+
+**验证方式**：
+- `xcodebuild -project macos/Clippi.xcodeproj -scheme Clippi -configuration Release -sdk macosx -derivedDataPath build ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build`
+- 代码级自检与交叉阅读。
+
+**验证结果**：
+- 本地 Rust / .NET 未运行。
+- macOS 编译已推进到 Swift 编译和链接阶段；Swift 层未见编译错误或并发警告，最终因本机缺少 `core/target/release/libclippi_core.a` 而链接失败。
+
 ## 2026-05-15（推进正式版到 v1.0.0）
 
 **触发原因**：用户要求项目打 `1.0.0` 发布，提交并触发 GitHub Actions 构建。
