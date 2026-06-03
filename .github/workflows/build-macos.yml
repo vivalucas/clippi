@@ -66,11 +66,46 @@ jobs:
 
       - name: Create DMG
         run: |
-          mkdir -p dist
+          mkdir -p dmg-staging
+          cp -R build/Build/Products/Release/Clippi.app dmg-staging/
+          ln -s /Applications dmg-staging/Applications
+
           hdiutil create -volname "Clippi" \
-                         -srcfolder build/Build/Products/Release/Clippi.app \
-                         -ov -format UDZO \
-                         dist/Clippi-macos.dmg
+                         -srcfolder dmg-staging \
+                         -ov -format UDRW \
+                         dist/Clippi-rw.dmg
+
+          # Mount and configure window layout
+          MOUNT_DIR=$(hdiutil attach dist/Clippi-rw.dmg -readwrite -noverify -noautoopen | grep "/Volumes" | awk '{print $NF}')
+          sleep 2
+
+          osascript <<APPLESCRIPT
+          tell application "Finder"
+            tell disk "Clippi"
+              open
+              set current view of container window to icon view
+              set toolbar visible of container window to false
+              set statusbar visible of container window to false
+              set bounds of container window to {200, 120, 840, 480}
+              set theViewOptions to icon view options of container window
+              set arrangement of theViewOptions to not arranged
+              set icon size of theViewOptions to 96
+              set position of item "Clippi.app" of container window to {160, 180}
+              set position of item "Applications" of container window to {480, 180}
+              close
+              open
+              update without registering applications
+              delay 2
+              close
+            end tell
+          end tell
+          APPLESCRIPT
+
+          hdiutil detach "$MOUNT_DIR" -quiet
+          sleep 1
+
+          hdiutil convert dist/Clippi-rw.dmg -format UDZO -imagekey zlib-level=9 -o dist/Clippi-macos.dmg
+          rm -f dist/Clippi-rw.dmg
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
