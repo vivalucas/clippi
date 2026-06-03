@@ -1,6 +1,6 @@
 [package]
 name = "clippi-core"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 description = "Clippi core library - video processing engine wrapper"
 license = "GPL-2.0"
