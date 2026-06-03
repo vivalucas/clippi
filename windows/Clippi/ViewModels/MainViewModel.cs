@@ -196,7 +196,7 @@ namespace Clippi.ViewModels
         {
             if (_dispatcherQueue != null && !_dispatcherQueue.HasThreadAccess)
             {
-                _dispatcherQueue.TryEnqueue(action);
+                _dispatcherQueue.TryEnqueue(() => action());
                 return;
             }
 
@@ -424,20 +424,20 @@ namespace Clippi.ViewModels
                     }
                 }
 
-                var message = "处理中...";
+                var progressMessage = "处理中...";
                 if (root.TryGetProperty("speed", out var speed) && speed.ValueKind == JsonValueKind.String)
                 {
                     var speedText = speed.GetString();
                     if (!string.IsNullOrWhiteSpace(speedText))
-                        message += $" 速度: {speedText}";
+                        progressMessage += $" 速度: {speedText}";
                 }
 
                 if (root.TryGetProperty("eta_secs", out var eta) && eta.ValueKind == JsonValueKind.Number && eta.TryGetInt64(out long etaSecs))
                 {
-                    message += $" 剩余: {etaSecs}秒";
+                    progressMessage += $" 剩余: {etaSecs}秒";
                 }
 
-                StatusMessage = message;
+                StatusMessage = progressMessage;
             }
             catch (Exception ex)
             {
