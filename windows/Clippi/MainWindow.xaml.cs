@@ -61,14 +61,14 @@ namespace Clippi
             }
             catch (Exception ex)
             {
-                ViewModel.StatusMessage = L10n.Format("error.readFileFailedWithMessage", ex.Message);
+                ViewModel.StatusMessage = L10n.Format("ErrorReadFileFailedWithMessage", ex.Message);
             }
         }
 
         private void OnDragOver(object sender, DragEventArgs e)
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = L10n.Get("drag.caption");
+            e.DragUIOverride.Caption = L10n.Get("DragCaption");
         }
 
         private async void OnSelectFileTapped(object sender, TappedRoutedEventArgs e)
@@ -96,7 +96,7 @@ namespace Clippi
             }
             catch (Exception ex)
             {
-                ViewModel.StatusMessage = L10n.Format("error.selectFileFailed", ex.Message);
+                ViewModel.StatusMessage = L10n.Format("ErrorSelectFileFailed", ex.Message);
             }
         }
 
@@ -181,7 +181,7 @@ namespace Clippi
             }
             catch (Exception ex)
             {
-                ViewModel.StatusMessage = L10n.Format("error.selectPathFailed", ex.Message);
+                ViewModel.StatusMessage = L10n.Format("ErrorSelectPathFailed", ex.Message);
             }
         }
 

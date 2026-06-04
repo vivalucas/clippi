@@ -39,25 +39,25 @@
   <data name="ChooseOutputButton.Content" xml:space="preserve"><value>Choose...</value></data>
   <data name="CancelButton.Content" xml:space="preserve"><value>Cancel</value></data>
   <data name="StartButton.Content" xml:space="preserve"><value>Start</value></data>
-  <data name="encoder.software" xml:space="preserve"><value>Software encoding</value></data>
-  <data name="status.processing" xml:space="preserve"><value>Processing...</value></data>
-  <data name="status.processing.speed" xml:space="preserve"><value> Speed: {0}</value></data>
-  <data name="status.processing.eta" xml:space="preserve"><value> ETA: {0} sec</value></data>
-  <data name="status.completed" xml:space="preserve"><value>Completed</value></data>
-  <data name="status.cancelled" xml:space="preserve"><value>Cancelled</value></data>
-  <data name="error.unsupportedVideo" xml:space="preserve"><value>Please choose a supported video file.</value></data>
-  <data name="error.readFileFailed" xml:space="preserve"><value>Failed to read file.</value></data>
-  <data name="error.startTaskFailed" xml:space="preserve"><value>Failed to start task.</value></data>
-  <data name="error.taskFailed" xml:space="preserve"><value>Task failed.</value></data>
-  <data name="error.selectFileFailed" xml:space="preserve"><value>Failed to choose file: {0}</value></data>
-  <data name="error.readFileFailedWithMessage" xml:space="preserve"><value>Failed to read file: {0}</value></data>
-  <data name="error.selectPathFailed" xml:space="preserve"><value>Failed to choose path: {0}</value></data>
-  <data name="error.outputPathRequired" xml:space="preserve"><value>Please choose an output path.</value></data>
-  <data name="error.outputDirMissing" xml:space="preserve"><value>The output folder does not exist.</value></data>
-  <data name="error.outputDirNotWritable" xml:space="preserve"><value>The output folder is not writable.</value></data>
-  <data name="error.outputExists" xml:space="preserve"><value>The output file already exists. Choose another path.</value></data>
-  <data name="error.trimEndAfterStart" xml:space="preserve"><value>Trim end time must be greater than start time.</value></data>
-  <data name="error.trimStartBeforeDuration" xml:space="preserve"><value>Trim start time cannot exceed the video duration.</value></data>
-  <data name="error.progressParseFailed" xml:space="preserve"><value>Failed to parse progress: {0}</value></data>
-  <data name="drag.caption" xml:space="preserve"><value>Drop here</value></data>
+  <data name="EncoderSoftware" xml:space="preserve"><value>Software encoding</value></data>
+  <data name="StatusProcessing" xml:space="preserve"><value>Processing...</value></data>
+  <data name="StatusProcessingSpeed" xml:space="preserve"><value> Speed: {0}</value></data>
+  <data name="StatusProcessingEta" xml:space="preserve"><value> ETA: {0} sec</value></data>
+  <data name="StatusCompleted" xml:space="preserve"><value>Completed</value></data>
+  <data name="StatusCancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="ErrorUnsupportedVideo" xml:space="preserve"><value>Please choose a supported video file.</value></data>
+  <data name="ErrorReadFileFailed" xml:space="preserve"><value>Failed to read file.</value></data>
+  <data name="ErrorStartTaskFailed" xml:space="preserve"><value>Failed to start task.</value></data>
+  <data name="ErrorTaskFailed" xml:space="preserve"><value>Task failed.</value></data>
+  <data name="ErrorSelectFileFailed" xml:space="preserve"><value>Failed to choose file: {0}</value></data>
+  <data name="ErrorReadFileFailedWithMessage" xml:space="preserve"><value>Failed to read file: {0}</value></data>
+  <data name="ErrorSelectPathFailed" xml:space="preserve"><value>Failed to choose path: {0}</value></data>
+  <data name="ErrorOutputPathRequired" xml:space="preserve"><value>Please choose an output path.</value></data>
+  <data name="ErrorOutputDirMissing" xml:space="preserve"><value>The output folder does not exist.</value></data>
+  <data name="ErrorOutputDirNotWritable" xml:space="preserve"><value>The output folder is not writable.</value></data>
+  <data name="ErrorOutputExists" xml:space="preserve"><value>The output file already exists. Choose another path.</value></data>
+  <data name="ErrorTrimEndAfterStart" xml:space="preserve"><value>Trim end time must be greater than start time.</value></data>
+  <data name="ErrorTrimStartBeforeDuration" xml:space="preserve"><value>Trim start time cannot exceed the video duration.</value></data>
+  <data name="ErrorProgressParseFailed" xml:space="preserve"><value>Failed to parse progress: {0}</value></data>
+  <data name="DragCaption" xml:space="preserve"><value>Drop here</value></data>
 </root>

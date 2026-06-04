@@ -14,7 +14,7 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <DefaultLanguage>zh-CN</DefaultLanguage>
     <ApplicationLanguages>zh-CN;en-US;ja-JP</ApplicationLanguages>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
   </PropertyGroup>
 
   <ItemGroup>
