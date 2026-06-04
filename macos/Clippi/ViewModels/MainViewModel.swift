@@ -114,6 +114,11 @@ class MainViewModel: ObservableObject {
     }
 
     func probeFile(at url: URL) {
+        guard Self.isSupportedVideo(url) else {
+            showError("请选择支持的视频文件")
+            return
+        }
+
         let path = url.path
 
         Task {
@@ -123,7 +128,7 @@ class MainViewModel: ObservableObject {
     }
 
     func startProcessing() {
-        guard fileInfo != nil else { return }
+        guard validateBeforeStart() else { return }
 
         isProcessing = true
         progress = 0
@@ -194,17 +199,13 @@ class MainViewModel: ObservableObject {
             operation = "RemoveAudio"
         }
 
-        var config: [String: Any] = [
+        let config: [String: Any] = [
             "input_path": fileInfo.path,
             "output_path": outputPath,
             "operation": operation,
             "video_codec": gpuInfo?.encoder ?? "libx264",
             "audio_codec": "aac"
         ]
-
-        if let hwAccel = gpuInfo?.hwAccel {
-            config["hw_accel"] = hwAccel
-        }
 
         return config
     }
@@ -253,9 +254,10 @@ class MainViewModel: ObservableObject {
     private func generateOutputPath(input: String) -> String {
         let url = URL(fileURLWithPath: input)
         let name = url.deletingPathExtension().lastPathComponent
-        let dir = url.deletingLastPathComponent().path
+        let dir = url.deletingLastPathComponent()
         let ext = outputExtension()
-        return "\(dir)/\(name)_output.\(ext)"
+        let initial = dir.appendingPathComponent("\(name)_output.\(ext)").path
+        return uniqueOutputPath(for: initial)
     }
 
     private func refreshOutputPath() {
@@ -295,11 +297,79 @@ class MainViewModel: ObservableObject {
         outputPath = generateOutputPath(input: path)
     }
 
+    private func validateBeforeStart() -> Bool {
+        guard fileInfo != nil else { return false }
+
+        let trimmedOutput = outputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedOutput.isEmpty else {
+            showError("请选择输出路径")
+            return false
+        }
+
+        let outputUrl = URL(fileURLWithPath: trimmedOutput)
+        let outputDir = outputUrl.deletingLastPathComponent().path
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: outputDir, isDirectory: &isDirectory), isDirectory.boolValue else {
+            showError("输出目录不存在")
+            return false
+        }
+
+        guard FileManager.default.isWritableFile(atPath: outputDir) else {
+            showError("输出目录没有写入权限")
+            return false
+        }
+
+        guard !FileManager.default.fileExists(atPath: trimmedOutput) else {
+            showError("输出文件已存在，请选择其他路径")
+            return false
+        }
+
+        if selectedOperation == .trim {
+            guard startTime >= 0, endTime > startTime else {
+                showError("裁剪结束时间必须大于开始时间")
+                return false
+            }
+
+            if let duration = fileInfo?.duration, duration > 0, startTime >= duration {
+                showError("裁剪开始时间不能超过视频时长")
+                return false
+            }
+        }
+
+        outputPath = trimmedOutput
+        return true
+    }
+
+    private func uniqueOutputPath(for path: String) -> String {
+        let url = URL(fileURLWithPath: path)
+        let dir = url.deletingLastPathComponent()
+        let name = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension
+
+        if !FileManager.default.fileExists(atPath: path) {
+            return path
+        }
+
+        for index in 2...999 {
+            let candidate = dir.appendingPathComponent("\(name) \(index).\(ext)").path
+            if !FileManager.default.fileExists(atPath: candidate) {
+                return candidate
+            }
+        }
+
+        return path
+    }
+
     private func outputExtension() -> String {
         if selectedOperation == .extractAudio {
             return audioFormat.rawValue.lowercased()
         }
         return outputFormat.rawValue.lowercased()
+    }
+
+    private static func isSupportedVideo(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        return ["mp4", "mkv", "mov", "webm", "avi", "m4v"].contains(ext)
     }
 
     private func showError(_ message: String) {

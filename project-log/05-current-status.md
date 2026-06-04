@@ -1,17 +1,20 @@
 # 当前状态
 
-> **最后更新**：2026-05-24
+> **最后更新**：2026-06-04
 > **最后更新人**：AI 开发助手
-> **最近开发日志**：2026-05-24 修复进度终态、probe 兜底和启动阻塞
-> **当前可信度**：本轮代码已更新，待重新验证本地 / CI 编译结果
+> **最近开发日志**：2026-06-04 v1.0.4 安全输出、异步启动、固定下载源与 DMG 修复
+> **当前可信度**：本轮代码已更新；本地完成可用的 Xcode 工程解析和 diff 检查，Rust / Windows 完整编译待 GitHub Actions 验证
 
 ## 当前版本
 
-**V1.0.0** — 正式版发布准备中，已修复第五轮评审发现的发布包、FFI、输出路径和任务生命周期问题。
+<!-- 旧状态（废弃于 2026-06-04，原因：已推进到 v1.0.4 发布修复） -->
+~~**V1.0.0** — 正式版发布准备中，已修复第五轮评审发现的发布包、FFI、输出路径和任务生命周期问题。~~
+
+**V1.0.4** — 修复 macOS DMG 生成目录问题，补充输出覆盖保护、启动前校验、FFI 异步任务准备和 ffmpeg 下载校验。
 
 ## 当前阶段
 
-核心功能代码本轮已做一轮稳定性和体验修复，等待重新跑编译和样本验证，确认未引入回归。
+核心功能代码完成 v1.0.4 稳定性和体验修复，等待 GitHub Actions 与真实视频样本验证。
 
 ## 已完成
 
@@ -34,11 +37,12 @@
 - README 编写
 - .gitignore 配置
 - GPL-2.0 开源协议
+- v1.0.4 本轮修复：macOS DMG `dist/` 目录缺失、输出文件防覆盖、启动前路径/裁剪校验、任务准备异步化、下载脚本 SHA256 校验
 
 ## 进行中
 
-- 等待本轮改动的编译验证与真实视频样本验证
-- 复核 Windows 终态回调、ffprobe 帧率兜底、任务句柄竞态、启动阶段阻塞问题
+- 等待 v1.0.4 GitHub Actions 构建与 Release 资产验证
+- 等待真实视频样本端到端验证
 
 ## 待处理
 
@@ -76,14 +80,14 @@
 
 ## 任务交接
 
-**当前任务**：本轮稳定性与体验修复（待验证）
+**当前任务**：v1.0.4 发布修复与体验优化（待 CI / Release 验证）
 
-**已完成**：阅读 project-log 与代码；修复 Rust 进度回调、serde 枚举兼容、macOS Xcode target 文件接入、Swift/C# FFI 回调、Windows XAML / WinUI API 问题、CI 构建参数、cc-mimo 第三轮评审确认项；新增本轮进度终态、probe 兜底、任务句柄竞态和 UI 启动阻塞修复
+**已完成**：阅读 project-log 与全量代码；修复 macOS DMG 生成目录；补充输出覆盖保护、输出路径自动避让、启动前校验、FFI 异步任务准备、macOS 文件选择限制和 ffmpeg 下载校验；版本推进到 v1.0.4
 
-**未完成**：真实视频样本端到端验证；本地 Rust/.NET 验证仍因本机无 cargo / dotnet 未运行；本轮改动待重新编译确认
+**未完成**：真实视频样本端到端验证；本地 Rust/.NET 验证仍因本机无 cargo / dotnet 未运行；v1.0.4 Actions / Release 结果待确认
 
-**下一步建议**：补单元测试和样本验证；如继续 UI 打磨，先对照 `11-code-review-log.md` 的构建失败复盘清单
+**下一步建议**：推送 v1.0.4 后检查 macOS / Windows Actions 结果与 Release assets；补真实视频样本验证和 Rust 单元测试
 
 **风险 / 阻塞**：本机缺 Rust 和 .NET；队列串行语义仍需更完整的执行模型测试；macOS 目前 CI 只构建 active architecture；本地缺少 `core/target/release/libclippi_core.a` 阻塞 Xcode 最终链接；Swift/GPU 异步改动需继续关注警告
 
-**相关文件**：`core/src/task.rs`, `core/src/types.rs`, `macos/Clippi.xcodeproj/project.pbxproj`, `macos/Clippi/FFI/ClippiFFI.swift`, `windows/Clippi/ClippiCore.cs`, `windows/Clippi/MainWindow.xaml`
+**相关文件**：`.github/workflows/build-macos.yml`, `core/src/task.rs`, `core/src/ffi.rs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `macos/Clippi/Views/MainView.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`, `scripts/download_ffmpeg.sh`, `scripts/download_ffmpeg.ps1`

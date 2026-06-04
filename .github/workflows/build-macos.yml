@@ -66,7 +66,8 @@ jobs:
 
       - name: Create DMG
         run: |
-          mkdir -p dmg-staging
+          rm -rf dist dmg-staging
+          mkdir -p dist dmg-staging
           cp -R build/Build/Products/Release/Clippi.app dmg-staging/
           ln -s /Applications dmg-staging/Applications
 

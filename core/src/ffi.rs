@@ -83,11 +83,6 @@ pub extern "C" fn clippi_run_task(
         Err(_) => return 0,
     };
 
-    let (args, duration) = match task::prepare_task(&config) {
-        Ok(prepared) => prepared,
-        Err(_) => return 0,
-    };
-
     let id = task::next_task_id();
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
@@ -113,7 +108,21 @@ pub extern "C" fn clippi_run_task(
     });
 
     match std::thread::Builder::new().spawn(move || {
-        let _ = task::execute_task_blocking(id, args, duration, cancel_rx, callback_box);
+        match task::prepare_task(&config) {
+            Ok((args, duration)) => {
+                let _ = task::execute_task_blocking(id, args, duration, cancel_rx, callback_box);
+            }
+            Err(error) => {
+                callback_box(Progress {
+                    task_id: Some(id),
+                    percent: 0.0,
+                    speed: String::new(),
+                    eta_secs: None,
+                    state: "failed".to_string(),
+                    message: Some(error.to_string()),
+                });
+            }
+        }
     }) {
         Ok(_) => id,
         Err(_) => {

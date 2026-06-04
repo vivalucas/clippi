@@ -13,7 +13,7 @@
 
 ### 触发方式
 
-推送 git tag（格式 `v*.*.*`）自动触发 GitHub Actions 构建流水线，同时构建 macOS 和 Windows 两个平台。
+推送到 `main` 会触发 GitHub Actions 构建 artifact 用于验证；推送 git tag（格式 `v*.*.*`）会同时构建 macOS 和 Windows 两个平台并上传 GitHub Release 资产。
 
 ### 构建流程
 
@@ -23,20 +23,21 @@
 | 2 | 运行 `download_ffmpeg.sh` | 运行 `download_ffmpeg.ps1` |
 | 3 | 编译 Rust 核心库 (.dylib) | 编译 Rust 核心库 (.dll) |
 | 4 | xcodebuild 打包 | MSBuild 打包 |
-| 5 | 生成 .dmg | 生成 .exe 安装包 |
+| 5 | 生成 .dmg | 生成 .zip |
 | 6 | 上传到 GitHub Release | 上传到 GitHub Release |
 
 ### CI/CD
 
 - GitHub Actions 配置文件：`.github/workflows/build-macos.yml` 和 `.github/workflows/build-windows.yml`
-- 推送 `v*.*.*` 格式的 tag 自动触发
+- 推送 `main` 自动构建验证 artifact
+- 推送 `v*.*.*` 格式的 tag 自动构建并上传 Release 资产
 
 ### 分发方式
 
 | 平台 | 格式 | 分发渠道 | 备注 |
 |------|------|----------|------|
 | macOS | .dmg | GitHub Releases | README 提供绕过 Gatekeeper 的命令 |
-| Windows | .exe | GitHub Releases + Microsoft Store（后期） | Store 版需额外签名配置 |
+| Windows | .zip | GitHub Releases + Microsoft Store（后期） | Store 版需额外签名配置 |
 
 ### macOS Gatekeeper 说明
 
@@ -72,3 +73,4 @@ xattr -cr /Applications/Clippi.app
 | 日期 | 变更内容 | 原因 |
 |------|----------|------|
 | 2025-05-14 | 初始版本，基于项目规划文档填充 | 项目初始化 |
+| 2026-06-04 | 更新 CI 触发方式和 Windows 产物格式为 zip | 与当前 workflow / README 保持一致 |

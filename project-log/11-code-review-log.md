@@ -27,6 +27,7 @@ A 评审（发现） → B 验证 + 修复确认项 + 评审（发现）
 | 4 | AI 开发助手 | 2026-05-15 | 0 | — |
 | 5 | AI 开发助手 | 2026-05-15 | 10 | F 轮全部确认已修复 |
 | 6 | cc-mimo | 2026-05-15 | 1 | 不成立 |
+| 7 | AI 开发助手 | 2026-06-04 | 5 已确认 + 2 待确认 | 本轮自检后已修复确认项，待 CI / 真机验证 |
 
 ## 构建失败复盘 / 下次检查清单
 
@@ -524,3 +525,85 @@ E 轮 10 个问题全部确认已修复。
 ---
 
 <!-- 后续棒次复制「X — 验证 + 第 N 轮评审」结构继续追加 -->
+
+## G — 验证 + 第七轮评审
+
+**评审人**：AI 开发助手
+**日期**：2026-06-04
+**范围**：全量代码（Rust 核心库、macOS SwiftUI、Windows WinUI 3、CI/CD、脚本、文档）
+
+### 对 F 的发现逐条验证
+
+| F 的问题 | 确认 | 说明 |
+|----------|------|------|
+| 问题 28：队列任务无法取消 | 维持不成立 | 当前桌面 UI 没有批量队列入口，`clippi_queue_tasks` 只是核心基础能力；本轮不把队列取消视为用户可触发 bug。 |
+
+### G 的独立评审发现
+
+#### 问题 29：macOS DMG 生成在干净 runner 上失败
+
+- **类型**：发布流程
+- **严重程度**：高
+- **状态**：已修复，待 CI 验证
+- **位置**：`.github/workflows/build-macos.yml`
+- **描述**：最新 `main` 和 `v1.0.3` macOS Actions 均在 `Create DMG` 步骤失败，日志为 `hdiutil: create failed - No such file or directory`。原因是输出路径 `dist/Clippi-rw.dmg` 所在目录未提前创建。
+- **复现步骤**：查看 GitHub Actions run `26875578692` 或 `26875574678` 的 failed log。
+- **修复**：DMG 阶段先 `rm -rf dist dmg-staging`，再 `mkdir -p dist dmg-staging`。
+
+#### 问题 30：输出文件会被静默覆盖
+
+- **类型**：Bug / 用户数据风险
+- **严重程度**：高
+- **状态**：已修复，待样本验证
+- **位置**：`core/src/task.rs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：Rust ffmpeg 参数固定使用 `-y`，两端 UI 启动前也没有检查输出文件是否已存在。用户手动选择已有文件时会被直接覆盖，与功能设计中的覆盖提示不一致。
+- **复现步骤**：将输出路径设为已存在文件后开始处理。
+- **修复**：核心层改用 `-n` 防止覆盖；两端 UI 增加输出路径存在检查；默认输出路径生成时自动避让已有文件。
+
+#### 问题 31：开始处理可能被同步 ffprobe 卡住
+
+- **类型**：性能 / 交互稳定性
+- **严重程度**：中
+- **状态**：已修复，待样本验证
+- **位置**：`core/src/ffi.rs`, `core/src/task.rs`
+- **描述**：`clippi_run_task` 在返回任务 ID 前同步调用 `prepare_task`，而非裁剪任务会同步调用 `probe_file` 获取时长。大文件、慢磁盘或 ffprobe 卡顿时，UI 点击开始后可能短暂无响应。
+- **复现步骤**：选择大文件执行格式转换或缩放，观察点击开始到 UI 切换状态之间的停顿。
+- **修复**：FFI 注册任务后立即启动后台线程，在线程内执行 `prepare_task` 和 ffmpeg 任务；准备失败通过 progress 终态回调上报。
+
+#### 问题 32：macOS 文件选择允许音频但核心 probe 只接受视频
+
+- **类型**：Bug / 可用性
+- **严重程度**：中
+- **状态**：已修复
+- **位置**：`macos/Clippi/Views/MainView.swift`, `core/src/probe.rs`
+- **描述**：macOS 文件选择器允许 `.audio`，但 `probe_file` 必须找到 video stream，否则返回 `No video stream found`。用户可以选择音频文件，但随后只能失败。
+- **复现步骤**：在 macOS 选择 mp3 / wav 文件导入。
+- **修复**：macOS 文件选择限制为 `.movie` / `.video`，两端 ViewModel 对拖拽 / 选择导入统一做视频扩展名校验。
+
+#### 问题 33：ffmpeg 下载源缺少校验且 Windows 跟随 latest 漂移
+
+- **类型**：安全 / 可复现性
+- **严重程度**：中
+- **状态**：已修复，待 CI 验证
+- **位置**：`scripts/download_ffmpeg.sh`, `scripts/download_ffmpeg.ps1`
+- **描述**：macOS 下载 zip 后直接解压，Windows 使用 BtbN `latest` 和 `master-latest`，构建结果会随上游变化且无法校验下载内容。
+- **复现步骤**：重复运行 Windows 下载脚本，实际下载资产可能随 `latest` 变化。
+- **修复**：macOS 增加 ffmpeg / ffprobe SHA256 校验；Windows 固定到 BtbN `autobuild-2026-06-03-14-37` 的 7.1 GPL win64 zip，并校验 SHA256。
+
+### G 的待确认问题
+
+#### 待确认 1：硬件编码在 Windows 真机上的兼容性
+
+- **类型**：兼容性
+- **严重程度**：中
+- **状态**：待真机验证
+- **位置**：`windows/Clippi/ViewModels/MainViewModel.cs`, `core/src/gpu.rs`
+- **说明**：本轮移除了 UI 侧强制传 `hw_accel`，保留硬件编码器选择。仍需在 NVIDIA / Intel QSV 机器上跑真实样本，确认硬件编码链路稳定。
+
+#### 待确认 2：Windows publish 产物中的 Rust DLL 与 ffmpeg 布局
+
+- **类型**：发布验证
+- **严重程度**：中
+- **状态**：待 CI 验证
+- **位置**：`.github/workflows/build-windows.yml`, `windows/Clippi/Clippi.csproj`
+- **说明**：最近 Windows CI 成功，但本机无 `dotnet`，本轮改动后仍需通过 GitHub Actions 验证 `clippi_core.dll`、`ffmpeg.exe`、`ffprobe.exe` 均在 zip 内且运行时可被找到。

@@ -244,7 +244,7 @@ pub fn cancel_task(task_id: u64, cancel_tx: tokio::sync::oneshot::Sender<()>) {
 /// Build ffmpeg arguments from task config
 fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
     let mut args = vec![
-        "-y".to_string(),
+        "-n".to_string(),
         "-hide_banner".to_string(),
         "-nostats".to_string(),
         "-loglevel".to_string(),

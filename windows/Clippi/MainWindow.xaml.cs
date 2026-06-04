@@ -221,12 +221,7 @@ namespace Clippi
 
         private void UpdateOutputPath()
         {
-            if (!string.IsNullOrEmpty(ViewModel.FilePath))
-            {
-                var dir = Path.GetDirectoryName(ViewModel.FilePath) ?? "";
-                var name = Path.GetFileNameWithoutExtension(ViewModel.FileName);
-                ViewModel.OutputPath = Path.Combine(dir, $"{name}_output.{ViewModel.GetOutputExtension()}");
-            }
+            ViewModel.RefreshOutputPath();
         }
     }
 }

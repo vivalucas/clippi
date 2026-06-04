@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-06-04（v1.0.4 安全输出、异步启动和发布修复）
+
+**触发原因**：用户要求在全量评审后修复所有确认项，统一优化体验，推进版本并触发新 Release。
+
+**修改内容**：
+1. `.github/workflows/build-macos.yml` — DMG 阶段先清理并创建 `dist` / `dmg-staging`，修复干净 runner 上 `hdiutil create` 因目录不存在失败的问题。
+2. `core/src/task.rs` — 将 ffmpeg 覆盖策略从 `-y` 改为 `-n`，防止底层静默覆盖用户已有文件。
+3. `core/src/ffi.rs` — `clippi_run_task` 返回任务 ID 前不再同步执行 `prepare_task` / `ffprobe`，改为后台线程内准备任务，减少 UI 启动处理时的阻塞。
+4. `macos/Clippi/ViewModels/MainViewModel.swift` — 增加输出路径为空、目录不存在、目录不可写、文件已存在和裁剪时间非法的启动前校验；默认输出路径自动避让已有文件；任务配置不再强制传 `hw_accel`。
+5. `macos/Clippi/Views/MainView.swift` / `macos/Clippi/ViewModels/MainViewModel.swift` — 文件选择和拖拽导入限制为支持的视频扩展名，避免允许音频文件后又被 Rust probe 拒绝。
+6. `windows/Clippi/ViewModels/MainViewModel.cs` — 增加同等启动前校验、输出路径自动避让和刷新逻辑；任务配置保留硬件编码器但不再强制传 `hw_accel`；拖拽 / 选择导入限制为支持的视频扩展名。
+7. `windows/Clippi/MainWindow.xaml.cs` — 输出路径刷新改为复用 ViewModel 的安全命名逻辑。
+8. `scripts/download_ffmpeg.sh` / `scripts/download_ffmpeg.ps1` — 增加 SHA256 校验；Windows 下载源从 `latest` 固定到 BtbN `autobuild-2026-06-03-14-37` 的 7.1 GPL win64 包。
+9. `core/Cargo.toml`, `macos/Clippi.xcodeproj/project.pbxproj`, `windows/Clippi/Clippi.csproj`, `windows/Clippi/app.manifest` — 版本号推进到 `1.0.4`。
+10. `project-log/05-current-status.md`, `project-log/11-code-review-log.md`, `project-log/01-function-design.md` — 同步当前状态、评审发现和功能实现边界。
+
+**遇到的问题**：
+- 本机 PATH 中仍无 `cargo` / `dotnet`，无法完成 Rust 和 Windows 本地编译验证。
+- macOS 本地缺少 `core/target/release/libclippi_core.a`，完整 Xcode 链接仍需 CI 验证。
+
+**解决方式**：
+- 对可本地验证的部分运行 Xcode 工程解析、diff whitespace 检查和脚本语法检查；完整构建交由 GitHub Actions。
+
+**验证方式**：
+- `xcodebuild -list -project macos/Clippi.xcodeproj`
+- `git diff --check`
+- `bash -n scripts/download_ffmpeg.sh`
+- PowerShell 脚本结构人工检查
+- GitHub Actions run / Release assets 在推送 tag 后验证
+
+**验证结果**：
+- Swift 类型检查通过。
+- Xcode project 可列出 `Clippi` target / scheme。
+- shell / PowerShell 脚本语法检查通过。
+- `git diff --check` 通过。
+- 本地无 `cargo` / `dotnet`，Rust / Windows 完整编译待 GitHub Actions。
+
+---
+
 ## 2026-05-24（本轮稳定性与体验修复）
 
 **触发原因**：本轮复核发现 Windows 终态回调、ffprobe 帧率兜底、任务句柄竞态和 UI 启动阻塞问题，需要同步修复。

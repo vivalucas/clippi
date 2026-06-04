@@ -250,6 +250,12 @@ namespace Clippi.ViewModels
 
         public async Task ProbeFileAsync(string path)
         {
+            if (!IsSupportedVideo(path))
+            {
+                DispatchToUi(() => StatusMessage = "请选择支持的视频文件");
+                return;
+            }
+
             var result = await Task.Run(() => ParseProbeResult(path));
             if (result == null)
             {
@@ -277,7 +283,7 @@ namespace Clippi.ViewModels
 
         public void StartProcessing()
         {
-            if (string.IsNullOrEmpty(FilePath)) return;
+            if (!ValidateBeforeStart()) return;
 
             IsProcessing = true;
             Progress = 0;
@@ -323,8 +329,7 @@ namespace Clippi.ViewModels
                 output_path = OutputPath,
                 operation = GetOperation(),
                 video_codec = GpuEncoder != "软件编码" ? GpuEncoder : "libx264",
-                audio_codec = "aac",
-                hw_accel = GpuEncoder != "软件编码" ? GetHwAccel() : null
+                audio_codec = "aac"
             };
 
             return JsonSerializer.Serialize(config);
@@ -367,23 +372,104 @@ namespace Clippi.ViewModels
             };
         }
 
-        private string? GetHwAccel()
-        {
-            if (GpuEncoder.Contains("nvenc")) return "cuda";
-            if (GpuEncoder.Contains("qsv")) return "qsv";
-            return null;
-        }
-
         private string GenerateOutputPath(string inputPath)
         {
             var dir = Path.GetDirectoryName(inputPath) ?? "";
             var name = Path.GetFileNameWithoutExtension(inputPath);
-            return Path.Combine(dir, $"{name}_output.{GetOutputExtension()}");
+            return UniqueOutputPath(Path.Combine(dir, $"{name}_output.{GetOutputExtension()}"));
+        }
+
+        private static bool IsSupportedVideo(string path)
+        {
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+            return ext is ".mp4" or ".mkv" or ".mov" or ".webm" or ".avi" or ".m4v";
         }
 
         public string GetOutputExtension()
         {
             return SelectedOperation == "extractAudio" ? AudioFormat : OutputFormat;
+        }
+
+        public void RefreshOutputPath()
+        {
+            if (!string.IsNullOrEmpty(FilePath))
+            {
+                OutputPath = GenerateOutputPath(FilePath);
+            }
+        }
+
+        private bool ValidateBeforeStart()
+        {
+            if (string.IsNullOrWhiteSpace(FilePath))
+                return false;
+
+            if (string.IsNullOrWhiteSpace(OutputPath))
+            {
+                StatusMessage = "请选择输出路径";
+                return false;
+            }
+
+            var outputDir = Path.GetDirectoryName(OutputPath);
+            if (string.IsNullOrWhiteSpace(outputDir) || !Directory.Exists(outputDir))
+            {
+                StatusMessage = "输出目录不存在";
+                return false;
+            }
+
+            try
+            {
+                var probePath = Path.Combine(outputDir, $".clippi-write-test-{Guid.NewGuid():N}.tmp");
+                File.WriteAllText(probePath, "");
+                File.Delete(probePath);
+            }
+            catch
+            {
+                StatusMessage = "输出目录没有写入权限";
+                return false;
+            }
+
+            if (File.Exists(OutputPath))
+            {
+                StatusMessage = "输出文件已存在，请选择其他路径";
+                return false;
+            }
+
+            if (SelectedOperation == "trim")
+            {
+                if (StartTime < 0 || EndTime <= StartTime)
+                {
+                    StatusMessage = "裁剪结束时间必须大于开始时间";
+                    return false;
+                }
+
+                if (Duration > 0 && StartTime >= Duration)
+                {
+                    StatusMessage = "裁剪开始时间不能超过视频时长";
+                    return false;
+                }
+            }
+
+            OutputPath = Path.GetFullPath(OutputPath);
+            return true;
+        }
+
+        private string UniqueOutputPath(string path)
+        {
+            if (!File.Exists(path))
+                return path;
+
+            var dir = Path.GetDirectoryName(path) ?? "";
+            var name = Path.GetFileNameWithoutExtension(path);
+            var ext = Path.GetExtension(path);
+
+            for (int index = 2; index <= 999; index++)
+            {
+                var candidate = Path.Combine(dir, $"{name} {index}{ext}");
+                if (!File.Exists(candidate))
+                    return candidate;
+            }
+
+            return path;
         }
 
         private void UpdateProgress(string progressJson)

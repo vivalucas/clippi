@@ -165,7 +165,7 @@ struct DropAreaView: View {
 
     private func selectFile() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.movie, .video, .audio]
+        panel.allowedContentTypes = [.movie, .video]
         panel.allowsMultipleSelection = false
 
         if panel.runModal() == .OK, let url = panel.url {

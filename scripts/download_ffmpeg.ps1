@@ -12,17 +12,25 @@ New-Item -ItemType Directory -Force -Path $TARGET_DIR | Out-Null
 Write-Host "Downloading ffmpeg for windows-x64..."
 
 # Download from BtbN/FFmpeg-Builds
-$FFMPEG_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+$FFMPEG_RELEASE = "autobuild-2026-06-03-14-37"
+$FFMPEG_ARCHIVE = "ffmpeg-n7.1.4-9-gc06af95f12-win64-gpl-7.1.zip"
+$FFMPEG_SHA256 = "305f5ac85ab794431fd32c724a30e2a8638b54fee6d2d983233685d937ccb9c7"
+$FFMPEG_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$FFMPEG_RELEASE/$FFMPEG_ARCHIVE"
 $ZIP_PATH = Join-Path $env:TEMP "ffmpeg.zip"
 
 Write-Host "Downloading ffmpeg..."
 Invoke-WebRequest -Uri $FFMPEG_URL -OutFile $ZIP_PATH
 
+$actualHash = (Get-FileHash -Path $ZIP_PATH -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualHash -ne $FFMPEG_SHA256) {
+    throw "ffmpeg checksum mismatch. Expected $FFMPEG_SHA256, got $actualHash"
+}
+
 Write-Host "Extracting..."
 Expand-Archive -Path $ZIP_PATH -DestinationPath $env:TEMP -Force
 
 # Move bin contents to target dir
-$extractedDir = Join-Path $env:TEMP "ffmpeg-master-latest-win64-gpl"
+$extractedDir = Join-Path $env:TEMP ($FFMPEG_ARCHIVE -replace "\.zip$", "")
 $binDir = Join-Path $extractedDir "bin"
 
 if (Test-Path $binDir) {
