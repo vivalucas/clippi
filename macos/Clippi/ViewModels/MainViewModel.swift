@@ -36,12 +36,22 @@ class MainViewModel: ObservableObject {
 
     private var currentTaskId: UInt64 = 0
 
-    enum OperationType: String, CaseIterable {
-        case trim = "裁剪"
-        case convert = "转换格式"
-        case scale = "缩放"
-        case extractAudio = "提取音频"
-        case removeAudio = "去除音频"
+    enum OperationType: CaseIterable {
+        case trim
+        case convert
+        case scale
+        case extractAudio
+        case removeAudio
+
+        var title: String {
+            switch self {
+            case .trim: return L10n.string("operation.trim")
+            case .convert: return L10n.string("operation.convert")
+            case .scale: return L10n.string("operation.scale")
+            case .extractAudio: return L10n.string("operation.extractAudio")
+            case .removeAudio: return L10n.string("operation.removeAudio")
+            }
+        }
     }
 
     enum Resolution: String, CaseIterable {
@@ -115,7 +125,7 @@ class MainViewModel: ObservableObject {
 
     func probeFile(at url: URL) {
         guard Self.isSupportedVideo(url) else {
-            showError("请选择支持的视频文件")
+            showError(L10n.string("error.unsupportedVideo"))
             return
         }
 
@@ -132,7 +142,7 @@ class MainViewModel: ObservableObject {
 
         isProcessing = true
         progress = 0
-        statusMessage = "处理中..."
+        statusMessage = L10n.string("status.processing")
 
         let config = buildTaskConfig()
 
@@ -148,7 +158,7 @@ class MainViewModel: ObservableObject {
             } else {
                 await MainActor.run {
                     isProcessing = false
-                    showError("启动任务失败")
+                    showError(L10n.string("error.startTaskFailed"))
                 }
             }
         }
@@ -159,7 +169,7 @@ class MainViewModel: ObservableObject {
             _ = ClippiFFI.cancelTask(id: currentTaskId)
             currentTaskId = 0
             isProcessing = false
-            statusMessage = "已取消"
+            statusMessage = L10n.string("status.cancelled")
         }
     }
 
@@ -225,27 +235,27 @@ class MainViewModel: ObservableObject {
             case "completed":
                 isProcessing = false
                 currentTaskId = 0
-                statusMessage = "处理完成"
+                statusMessage = L10n.string("status.completed")
                 ClippiFFI.clearProgressCallback()
                 return
             case "failed", "cancelled":
                 isProcessing = false
                 currentTaskId = 0
                 ClippiFFI.clearProgressCallback()
-                showError(dict["message"] as? String ?? "任务处理失败")
+                showError(dict["message"] as? String ?? L10n.string("error.taskFailed"))
                 return
             default:
                 break
             }
         }
 
-        var message = "处理中..."
+        var message = L10n.string("status.processing")
         if let speed = dict["speed"] as? String, !speed.isEmpty {
-            message += " 速度: \(speed)"
+            message += L10n.format("status.processing.speed", speed)
         }
 
         if let eta = dict["eta_secs"] as? Int {
-            message += " 剩余: \(eta)秒"
+            message += L10n.format("status.processing.eta", eta)
         }
 
         statusMessage = message
@@ -279,7 +289,7 @@ class MainViewModel: ObservableObject {
 
     private func applyProbeResult(_ result: [String: Any]?, path: String) {
         guard let result else {
-            showError("无法读取文件信息")
+            showError(L10n.string("error.probeFailed"))
             return
         }
 
@@ -302,7 +312,7 @@ class MainViewModel: ObservableObject {
 
         let trimmedOutput = outputPath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedOutput.isEmpty else {
-            showError("请选择输出路径")
+            showError(L10n.string("error.outputPathRequired"))
             return false
         }
 
@@ -310,28 +320,28 @@ class MainViewModel: ObservableObject {
         let outputDir = outputUrl.deletingLastPathComponent().path
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: outputDir, isDirectory: &isDirectory), isDirectory.boolValue else {
-            showError("输出目录不存在")
+            showError(L10n.string("error.outputDirMissing"))
             return false
         }
 
         guard FileManager.default.isWritableFile(atPath: outputDir) else {
-            showError("输出目录没有写入权限")
+            showError(L10n.string("error.outputDirNotWritable"))
             return false
         }
 
         guard !FileManager.default.fileExists(atPath: trimmedOutput) else {
-            showError("输出文件已存在，请选择其他路径")
+            showError(L10n.string("error.outputExists"))
             return false
         }
 
         if selectedOperation == .trim {
             guard startTime >= 0, endTime > startTime else {
-                showError("裁剪结束时间必须大于开始时间")
+                showError(L10n.string("error.trimEndAfterStart"))
                 return false
             }
 
             if let duration = fileInfo?.duration, duration > 0, startTime >= duration {
-                showError("裁剪开始时间不能超过视频时长")
+                showError(L10n.string("error.trimStartBeforeDuration"))
                 return false
             }
         }

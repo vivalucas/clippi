@@ -8,14 +8,14 @@ struct MainView: View {
         VStack(spacing: 16) {
             // Header with GPU status
             HStack {
-                Text("Clippi")
+                Text(L10n.string("app.name"))
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
                 Spacer()
 
                 if let gpu = viewModel.gpuInfo {
-                    Label(gpu.encoder ?? "软件编码", systemImage: "gpu")
+                    Label(gpu.encoder ?? L10n.string("encoder.software"), systemImage: "gpu")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -31,9 +31,9 @@ struct MainView: View {
             }
 
             // Operation selector
-            Picker("操作", selection: $viewModel.selectedOperation) {
+            Picker(L10n.string("operation.label"), selection: $viewModel.selectedOperation) {
                 ForEach(MainViewModel.OperationType.allCases, id: \.self) { type in
-                    Text(type.rawValue).tag(type)
+                    Text(type.title).tag(type)
                 }
             }
             .pickerStyle(.segmented)
@@ -43,10 +43,10 @@ struct MainView: View {
 
             // Output path
             HStack {
-                TextField("输出路径", text: $viewModel.outputPath)
+                TextField(L10n.string("output.path"), text: $viewModel.outputPath)
                     .textFieldStyle(.roundedBorder)
 
-                Button("选择...") {
+                Button(L10n.string("choose.ellipsis")) {
                     selectOutputPath()
                 }
             }
@@ -59,13 +59,13 @@ struct MainView: View {
                     }
                     .progressViewStyle(.linear)
 
-                    Button("取消") {
+                    Button(L10n.string("cancel")) {
                         viewModel.cancelProcessing()
                     }
                     .foregroundColor(.red)
                 }
             } else {
-                Button("开始处理") {
+                Button(L10n.string("start.processing")) {
                     viewModel.startProcessing()
                 }
                 .buttonStyle(.borderedProminent)
@@ -74,8 +74,8 @@ struct MainView: View {
         }
         .padding()
         .frame(minWidth: 600, minHeight: 500)
-        .alert("错误", isPresented: $viewModel.showError) {
-            Button("确定") {}
+        .alert(L10n.string("error.title"), isPresented: $viewModel.showError) {
+            Button(L10n.string("ok")) {}
         } message: {
             Text(viewModel.errorMessage)
         }
@@ -98,7 +98,7 @@ struct MainView: View {
         case .extractAudio:
             AudioFormatControlsView(audioFormat: $viewModel.audioFormat)
         case .removeAudio:
-            Text("将移除视频中的所有音频轨道")
+            Text(L10n.string("removeAudio.description"))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -133,11 +133,11 @@ struct DropAreaView: View {
                         .font(.system(size: 48))
                         .foregroundColor(.secondary)
 
-                    Text("拖拽视频文件到这里")
+                    Text(L10n.string("drop.primary"))
                         .font(.title3)
                         .foregroundColor(.secondary)
 
-                    Text("或点击选择文件")
+                    Text(L10n.string("drop.secondary"))
                         .font(.caption)
                         .foregroundColor(.accentColor)
                 }
@@ -190,19 +190,19 @@ struct FileInfoCard: View {
 
             Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 4) {
                 GridRow {
-                    Label("分辨率", systemImage: "aspectratio")
+                    Label(L10n.string("file.resolution"), systemImage: "aspectratio")
                     Text("\(fileInfo.width) x \(fileInfo.height)")
                 }
                 GridRow {
-                    Label("时长", systemImage: "clock")
+                    Label(L10n.string("file.duration"), systemImage: "clock")
                     Text(formatDuration(fileInfo.duration))
                 }
                 GridRow {
-                    Label("编码", systemImage: "film")
+                    Label(L10n.string("file.codec"), systemImage: "film")
                     Text(fileInfo.codec)
                 }
                 GridRow {
-                    Label("帧率", systemImage: "speedometer")
+                    Label(L10n.string("file.frameRate"), systemImage: "speedometer")
                     Text(String(format: "%.2f fps", fileInfo.frameRate))
                 }
             }
@@ -230,22 +230,22 @@ struct TrimControlsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("开始时间:")
-                TextField("秒", value: $startTime, format: .number)
+                Text(L10n.string("trim.startTime"))
+                TextField(L10n.string("trim.seconds.placeholder"), value: $startTime, format: .number)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
-                Text("秒")
+                Text(L10n.string("trim.seconds.unit"))
 
                 Spacer()
 
-                Text("结束时间:")
-                TextField("秒", value: $endTime, format: .number)
+                Text(L10n.string("trim.endTime"))
+                TextField(L10n.string("trim.seconds.placeholder"), value: $endTime, format: .number)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
-                Text("秒")
+                Text(L10n.string("trim.seconds.unit"))
             }
 
-            Toggle("快速模式（不重编码，可能不精确）", isOn: $fastMode)
+            Toggle(L10n.string("trim.fastMode"), isOn: $fastMode)
         }
     }
 }
@@ -254,7 +254,7 @@ struct FormatControlsView: View {
     @Binding var outputFormat: MainViewModel.OutputFormat
 
     var body: some View {
-        Picker("输出格式", selection: $outputFormat) {
+        Picker(L10n.string("format.output"), selection: $outputFormat) {
             ForEach(MainViewModel.OutputFormat.allCases, id: \.self) { format in
                 Text(format.rawValue).tag(format)
             }
@@ -267,7 +267,7 @@ struct ScaleControlsView: View {
     @Binding var resolution: MainViewModel.Resolution
 
     var body: some View {
-        Picker("目标分辨率", selection: $resolution) {
+        Picker(L10n.string("scale.resolution"), selection: $resolution) {
             ForEach(MainViewModel.Resolution.allCases, id: \.self) { res in
                 Text(res.rawValue).tag(res)
             }
@@ -280,7 +280,7 @@ struct AudioFormatControlsView: View {
     @Binding var audioFormat: MainViewModel.AudioFormat
 
     var body: some View {
-        Picker("音频格式", selection: $audioFormat) {
+        Picker(L10n.string("audio.format"), selection: $audioFormat) {
             ForEach(MainViewModel.AudioFormat.allCases, id: \.self) { format in
                 Text(format.rawValue).tag(format)
             }

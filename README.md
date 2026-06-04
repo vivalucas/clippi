@@ -1,5 +1,7 @@
 # Clippi
 
+[简体中文](README.md) | [English](README.en.md) | [日本語](README.ja.md)
+
 Clippi 是一款跨平台原生桌面视频处理工具。它以 ffmpeg / ffprobe 为处理引擎，用 macOS SwiftUI 和 Windows WinUI 3 提供图形界面，让常见视频处理任务不再依赖命令行。
 
 ## 当前功能
@@ -13,6 +15,7 @@ Clippi 是一款跨平台原生桌面视频处理工具。它以 ffmpeg / ffprob
 - GPU 编码探测：macOS VideoToolbox，Windows NVENC / QSV
 - 处理进度、速度、完成、失败和取消状态回传
 - 输出路径自动避让已有文件，处理前检查覆盖和写入权限
+- 界面本地化：简体中文、English、日本語
 
 > 批量队列和更完整的高级 ffmpeg 参数控制仍在后续规划中；当前桌面 UI 以单文件处理为主。
 
@@ -33,6 +36,7 @@ Release 构建会把 ffmpeg / ffprobe 一起打包进应用产物；用户不需
 | Windows UI | C# + WinUI 3 |
 | 核心库 | Rust |
 | 处理引擎 | ffmpeg / ffprobe |
+| 本地化 | macOS `.lproj` / Windows `.resw` |
 
 ## 项目结构
 
@@ -56,12 +60,16 @@ clippi/
 │       ├── ClippiApp.swift        # App 入口
 │       ├── ClippiCore.h           # Swift 桥接头
 │       ├── FFI/ClippiFFI.swift    # Swift FFI 封装
+│       ├── Localization.swift     # macOS 本地化辅助
+│       ├── *.lproj/               # 简中 / 英文 / 日文本地化资源
 │       ├── ViewModels/
 │       └── Views/
 ├── windows/                       # Windows WinUI 3 项目
 │   └── Clippi/
 │       ├── App.xaml/cs
 │       ├── MainWindow.xaml/cs
+│       ├── Localization.cs        # Windows 本地化辅助
+│       ├── Strings/               # 简中 / 英文 / 日文 .resw 资源
 │       ├── ViewModels/
 │       └── ClippiCore.cs          # C# P/Invoke 封装
 ├── scripts/
@@ -73,7 +81,9 @@ clippi/
 │   ├── build-macos.yml
 │   └── build-windows.yml
 ├── LICENSE
-└── README.md
+├── README.md                      # 简体中文
+├── README.en.md                   # English
+└── README.ja.md                   # 日本語
 ```
 
 ## 本地开发

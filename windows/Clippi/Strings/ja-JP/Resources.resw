@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="MainWindow.Title" xml:space="preserve"><value>Clippi</value></data>
+  <data name="DropPrimaryText.Text" xml:space="preserve"><value>動画ファイルをここにドロップ</value></data>
+  <data name="DropSecondaryText.Text" xml:space="preserve"><value>またはクリックしてファイルを選択</value></data>
+  <data name="ResolutionLabel.Text" xml:space="preserve"><value>解像度</value></data>
+  <data name="DurationLabel.Text" xml:space="preserve"><value>長さ</value></data>
+  <data name="CodecLabel.Text" xml:space="preserve"><value>コーデック</value></data>
+  <data name="FrameRateLabel.Text" xml:space="preserve"><value>フレームレート</value></data>
+  <data name="OperationSelector.Header" xml:space="preserve"><value>操作</value></data>
+  <data name="TrimOperation.Content" xml:space="preserve"><value>トリミング</value></data>
+  <data name="ConvertOperation.Content" xml:space="preserve"><value>形式変換</value></data>
+  <data name="ScaleOperation.Content" xml:space="preserve"><value>リサイズ</value></data>
+  <data name="ExtractAudioOperation.Content" xml:space="preserve"><value>音声抽出</value></data>
+  <data name="RemoveAudioOperation.Content" xml:space="preserve"><value>音声削除</value></data>
+  <data name="TrimStartBox.Header" xml:space="preserve"><value>開始時間 (秒)</value></data>
+  <data name="TrimRangeText.Text" xml:space="preserve"><value>から</value></data>
+  <data name="TrimEndBox.Header" xml:space="preserve"><value>終了時間 (秒)</value></data>
+  <data name="FastModeSwitch.Header" xml:space="preserve"><value>高速モード</value></data>
+  <data name="FastModeSwitch.OnContent" xml:space="preserve"><value>再エンコードなし</value></data>
+  <data name="FastModeSwitch.OffContent" xml:space="preserve"><value>精密トリミング</value></data>
+  <data name="OutputFormatLabel.Text" xml:space="preserve"><value>出力形式</value></data>
+  <data name="TargetResolutionLabel.Text" xml:space="preserve"><value>目標解像度</value></data>
+  <data name="AudioFormatLabel.Text" xml:space="preserve"><value>音声形式</value></data>
+  <data name="RemoveAudioText.Text" xml:space="preserve"><value>動画内のすべての音声トラックを削除します。</value></data>
+  <data name="OutputPathBox.Header" xml:space="preserve"><value>出力先</value></data>
+  <data name="ChooseOutputButton.Content" xml:space="preserve"><value>選択...</value></data>
+  <data name="CancelButton.Content" xml:space="preserve"><value>キャンセル</value></data>
+  <data name="StartButton.Content" xml:space="preserve"><value>処理開始</value></data>
+  <data name="encoder.software" xml:space="preserve"><value>ソフトウェアエンコード</value></data>
+  <data name="status.processing" xml:space="preserve"><value>処理中...</value></data>
+  <data name="status.processing.speed" xml:space="preserve"><value> 速度: {0}</value></data>
+  <data name="status.processing.eta" xml:space="preserve"><value> 残り: {0}秒</value></data>
+  <data name="status.completed" xml:space="preserve"><value>処理完了</value></data>
+  <data name="status.cancelled" xml:space="preserve"><value>キャンセル済み</value></data>
+  <data name="error.unsupportedVideo" xml:space="preserve"><value>対応している動画ファイルを選択してください。</value></data>
+  <data name="error.readFileFailed" xml:space="preserve"><value>ファイルの読み取りに失敗しました。</value></data>
+  <data name="error.startTaskFailed" xml:space="preserve"><value>タスクを開始できませんでした。</value></data>
+  <data name="error.taskFailed" xml:space="preserve"><value>タスク処理に失敗しました。</value></data>
+  <data name="error.selectFileFailed" xml:space="preserve"><value>ファイルを選択できませんでした: {0}</value></data>
+  <data name="error.readFileFailedWithMessage" xml:space="preserve"><value>ファイルの読み取りに失敗しました: {0}</value></data>
+  <data name="error.selectPathFailed" xml:space="preserve"><value>パスを選択できませんでした: {0}</value></data>
+  <data name="error.outputPathRequired" xml:space="preserve"><value>出力先を選択してください。</value></data>
+  <data name="error.outputDirMissing" xml:space="preserve"><value>出力フォルダが存在しません。</value></data>
+  <data name="error.outputDirNotWritable" xml:space="preserve"><value>出力フォルダに書き込み権限がありません。</value></data>
+  <data name="error.outputExists" xml:space="preserve"><value>出力ファイルはすでに存在します。別のパスを選択してください。</value></data>
+  <data name="error.trimEndAfterStart" xml:space="preserve"><value>トリミング終了時間は開始時間より後にしてください。</value></data>
+  <data name="error.trimStartBeforeDuration" xml:space="preserve"><value>トリミング開始時間は動画の長さを超えられません。</value></data>
+  <data name="error.progressParseFailed" xml:space="preserve"><value>進捗の解析に失敗しました: {0}</value></data>
+  <data name="drag.caption" xml:space="preserve"><value>ここにドロップ</value></data>
+</root>

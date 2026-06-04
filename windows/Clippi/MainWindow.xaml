@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
+    x:Uid="MainWindow"
     Title="Clippi">
 
     <Grid Margin="20">
@@ -44,10 +45,12 @@
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
                             Tapped="OnSelectFileTapped">
                     <FontIcon Glyph="&#xE710;" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                    <TextBlock Text="拖拽视频文件到这里"
+                    <TextBlock x:Uid="DropPrimaryText"
+                               Text="拖拽视频文件到这里"
                                Style="{StaticResource SubtitleTextBlockStyle}"
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="或点击选择文件"
+                    <TextBlock x:Uid="DropSecondaryText"
+                               Text="或点击选择文件"
                                Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                HorizontalAlignment="Center"
                                Margin="0,8,0,0"/>
@@ -83,28 +86,28 @@
 
                         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
                             <FontIcon Glyph="&#xE711;" FontSize="14"/>
-                            <TextBlock Text="分辨率"/>
+                            <TextBlock x:Uid="ResolutionLabel" Text="分辨率"/>
                             <TextBlock Text="{x:Bind FormatResolution(ViewModel.Width, ViewModel.Height), Mode=OneWay}"
                                        FontWeight="SemiBold"/>
                         </StackPanel>
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
                             <FontIcon Glyph="&#xE712;" FontSize="14"/>
-                            <TextBlock Text="时长"/>
+                            <TextBlock x:Uid="DurationLabel" Text="时长"/>
                             <TextBlock Text="{x:Bind FormatDuration(ViewModel.Duration), Mode=OneWay}"
                                        FontWeight="SemiBold"/>
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE713;" FontSize="14"/>
-                            <TextBlock Text="编码"/>
+                            <TextBlock x:Uid="CodecLabel" Text="编码"/>
                             <TextBlock Text="{x:Bind ViewModel.Codec, Mode=OneWay}"
                                        FontWeight="SemiBold"/>
                         </StackPanel>
 
                         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE715;" FontSize="14"/>
-                            <TextBlock Text="帧率"/>
+                            <TextBlock x:Uid="FrameRateLabel" Text="帧率"/>
                             <TextBlock Text="{x:Bind FormatFrameRate(ViewModel.FrameRate), Mode=OneWay}"
                                        FontWeight="SemiBold"/>
                         </StackPanel>
@@ -114,13 +117,13 @@
         </Grid>
 
         <!-- Operation Selector -->
-        <RadioButtons Grid.Row="2" Header="操作" SelectedIndex="0"
+        <RadioButtons x:Uid="OperationSelector" Grid.Row="2" Header="操作" SelectedIndex="0"
                       SelectionChanged="OnOperationChanged">
-            <RadioButton Content="裁剪"/>
-            <RadioButton Content="转换格式"/>
-            <RadioButton Content="缩放"/>
-            <RadioButton Content="提取音频"/>
-            <RadioButton Content="去除音频"/>
+            <RadioButton x:Uid="TrimOperation" Content="裁剪"/>
+            <RadioButton x:Uid="ConvertOperation" Content="转换格式"/>
+            <RadioButton x:Uid="ScaleOperation" Content="缩放"/>
+            <RadioButton x:Uid="ExtractAudioOperation" Content="提取音频"/>
+            <RadioButton x:Uid="RemoveAudioOperation" Content="去除音频"/>
         </RadioButtons>
 
         <!-- Operation Controls -->
@@ -136,17 +139,17 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <NumberBox Grid.Column="0" Header="开始时间 (秒)"
+                    <NumberBox x:Uid="TrimStartBox" Grid.Column="0" Header="开始时间 (秒)"
                                Value="{x:Bind ViewModel.StartTime, Mode=TwoWay}"
                                Minimum="0" SpinButtonPlacementMode="Compact"/>
 
-                    <TextBlock Grid.Column="1" Text="至" VerticalAlignment="Bottom" Margin="8,0,8,8"/>
+                    <TextBlock x:Uid="TrimRangeText" Grid.Column="1" Text="至" VerticalAlignment="Bottom" Margin="8,0,8,8"/>
 
-                    <NumberBox Grid.Column="2" Header="结束时间 (秒)"
+                    <NumberBox x:Uid="TrimEndBox" Grid.Column="2" Header="结束时间 (秒)"
                                Value="{x:Bind ViewModel.EndTime, Mode=TwoWay}"
                                Minimum="0" SpinButtonPlacementMode="Compact"/>
 
-                    <ToggleSwitch Grid.Column="4" Header="快速模式"
+                    <ToggleSwitch x:Uid="FastModeSwitch" Grid.Column="4" Header="快速模式"
                                   IsOn="{x:Bind ViewModel.FastMode, Mode=TwoWay}"
                                   OnContent="不重编码" OffContent="精确裁剪"
                                   VerticalAlignment="Bottom" Margin="16,0,0,0"/>
@@ -155,7 +158,7 @@
 
             <!-- Format Controls -->
             <StackPanel x:Name="FormatPanel" Visibility="Collapsed">
-                <TextBlock Text="输出格式" Margin="0,0,0,8"/>
+                <TextBlock x:Uid="OutputFormatLabel" Text="输出格式" Margin="0,0,0,8"/>
                 <RadioButtons SelectedIndex="0" SelectionChanged="OnFormatChanged">
                     <RadioButton Content="MP4"/>
                     <RadioButton Content="MKV"/>
@@ -166,7 +169,7 @@
 
             <!-- Scale Controls -->
             <StackPanel x:Name="ScalePanel" Visibility="Collapsed">
-                <TextBlock Text="目标分辨率" Margin="0,0,0,8"/>
+                <TextBlock x:Uid="TargetResolutionLabel" Text="目标分辨率" Margin="0,0,0,8"/>
                 <RadioButtons SelectedIndex="1" SelectionChanged="OnResolutionChanged">
                     <RadioButton Content="4K (3840x2160)"/>
                     <RadioButton Content="1080p (1920x1080)"/>
@@ -177,7 +180,7 @@
 
             <!-- Audio Controls -->
             <StackPanel x:Name="AudioPanel" Visibility="Collapsed">
-                <TextBlock Text="音频格式" Margin="0,0,0,8"/>
+                <TextBlock x:Uid="AudioFormatLabel" Text="音频格式" Margin="0,0,0,8"/>
                 <RadioButtons SelectedIndex="0" SelectionChanged="OnAudioFormatChanged">
                     <RadioButton Content="MP3"/>
                     <RadioButton Content="AAC"/>
@@ -186,7 +189,7 @@
             </StackPanel>
 
             <!-- Remove Audio Info -->
-            <TextBlock x:Name="RemoveAudioText" Visibility="Collapsed"
+            <TextBlock x:Uid="RemoveAudioText" x:Name="RemoveAudioText" Visibility="Collapsed"
                        Text="将移除视频中的所有音频轨道"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Grid>
@@ -198,10 +201,10 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBox Grid.Column="0" Header="输出路径"
+            <TextBox x:Uid="OutputPathBox" Grid.Column="0" Header="输出路径"
                      Text="{x:Bind ViewModel.OutputPath, Mode=TwoWay}"/>
 
-            <Button Grid.Column="1" Content="选择..." Margin="8,24,0,0"
+            <Button x:Uid="ChooseOutputButton" Grid.Column="1" Content="选择..." Margin="8,24,0,0"
                     Click="OnSelectOutputPath"/>
         </Grid>
 
@@ -212,12 +215,12 @@
                 <ProgressBar Value="{x:Bind ViewModel.Progress, Mode=OneWay}" Maximum="100"/>
                 <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
                            HorizontalAlignment="Center" Margin="0,8,0,0"/>
-                <Button Content="取消" HorizontalAlignment="Center" Margin="0,8,0,0"
+                <Button x:Uid="CancelButton" Content="取消" HorizontalAlignment="Center" Margin="0,8,0,0"
                         Click="OnCancelClick" Style="{StaticResource AccentButtonStyle}"/>
             </StackPanel>
 
             <!-- Start Button -->
-            <Button x:Name="StartButton" Content="开始处理"
+            <Button x:Uid="StartButton" x:Name="StartButton" Content="开始处理"
                     Style="{StaticResource AccentButtonStyle}"
                     HorizontalAlignment="Center"
                     Click="OnStartClick"

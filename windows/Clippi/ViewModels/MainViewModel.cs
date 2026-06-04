@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Clippi;
 using Microsoft.UI.Dispatching;
 
 namespace Clippi.ViewModels
@@ -31,7 +32,7 @@ namespace Clippi.ViewModels
         private bool _isProcessing;
         private double _progress;
         private string _statusMessage = "";
-        private string _gpuEncoder = "软件编码";
+        private string _gpuEncoder = L10n.Get("encoder.software");
 
         private ulong _currentTaskId;
         private readonly DispatcherQueue? _dispatcherQueue;
@@ -187,7 +188,7 @@ namespace Clippi.ViewModels
                 }
                 catch
                 {
-                    DispatchToUi(() => GpuEncoder = "软件编码");
+                    DispatchToUi(() => GpuEncoder = L10n.Get("encoder.software"));
                 }
             });
         }
@@ -212,12 +213,12 @@ namespace Clippi.ViewModels
 
                 if (root.TryGetProperty("video_encoder", out var encoder) && encoder.ValueKind == JsonValueKind.String)
                 {
-                    GpuEncoder = encoder.GetString() ?? "软件编码";
+                    GpuEncoder = encoder.GetString() ?? L10n.Get("encoder.software");
                 }
             }
             catch
             {
-                GpuEncoder = "软件编码";
+                GpuEncoder = L10n.Get("encoder.software");
             }
         }
 
@@ -252,14 +253,14 @@ namespace Clippi.ViewModels
         {
             if (!IsSupportedVideo(path))
             {
-                DispatchToUi(() => StatusMessage = "请选择支持的视频文件");
+                DispatchToUi(() => StatusMessage = L10n.Get("error.unsupportedVideo"));
                 return;
             }
 
             var result = await Task.Run(() => ParseProbeResult(path));
             if (result == null)
             {
-                DispatchToUi(() => StatusMessage = "读取文件失败");
+                DispatchToUi(() => StatusMessage = L10n.Get("error.readFileFailed"));
                 return;
             }
 
@@ -287,7 +288,7 @@ namespace Clippi.ViewModels
 
             IsProcessing = true;
             Progress = 0;
-            StatusMessage = "处理中...";
+            StatusMessage = L10n.Get("status.processing");
 
             var config = BuildTaskConfig();
 
@@ -306,7 +307,7 @@ namespace Clippi.ViewModels
             if (_currentTaskId == 0)
             {
                 IsProcessing = false;
-                StatusMessage = "启动任务失败";
+                StatusMessage = L10n.Get("error.startTaskFailed");
             }
         }
 
@@ -317,7 +318,7 @@ namespace Clippi.ViewModels
                 ClippiCore.CancelTask(_currentTaskId);
                 _currentTaskId = 0;
                 IsProcessing = false;
-                StatusMessage = "已取消";
+                StatusMessage = L10n.Get("status.cancelled");
             }
         }
 
@@ -328,7 +329,7 @@ namespace Clippi.ViewModels
                 input_path = FilePath,
                 output_path = OutputPath,
                 operation = GetOperation(),
-                video_codec = GpuEncoder != "软件编码" ? GpuEncoder : "libx264",
+                video_codec = GpuEncoder != L10n.Get("encoder.software") ? GpuEncoder : "libx264",
                 audio_codec = "aac"
             };
 
@@ -405,14 +406,14 @@ namespace Clippi.ViewModels
 
             if (string.IsNullOrWhiteSpace(OutputPath))
             {
-                StatusMessage = "请选择输出路径";
+                StatusMessage = L10n.Get("error.outputPathRequired");
                 return false;
             }
 
             var outputDir = Path.GetDirectoryName(OutputPath);
             if (string.IsNullOrWhiteSpace(outputDir) || !Directory.Exists(outputDir))
             {
-                StatusMessage = "输出目录不存在";
+                StatusMessage = L10n.Get("error.outputDirMissing");
                 return false;
             }
 
@@ -424,13 +425,13 @@ namespace Clippi.ViewModels
             }
             catch
             {
-                StatusMessage = "输出目录没有写入权限";
+                StatusMessage = L10n.Get("error.outputDirNotWritable");
                 return false;
             }
 
             if (File.Exists(OutputPath))
             {
-                StatusMessage = "输出文件已存在，请选择其他路径";
+                StatusMessage = L10n.Get("error.outputExists");
                 return false;
             }
 
@@ -438,13 +439,13 @@ namespace Clippi.ViewModels
             {
                 if (StartTime < 0 || EndTime <= StartTime)
                 {
-                    StatusMessage = "裁剪结束时间必须大于开始时间";
+                    StatusMessage = L10n.Get("error.trimEndAfterStart");
                     return false;
                 }
 
                 if (Duration > 0 && StartTime >= Duration)
                 {
-                    StatusMessage = "裁剪开始时间不能超过视频时长";
+                    StatusMessage = L10n.Get("error.trimStartBeforeDuration");
                     return false;
                 }
             }
@@ -491,11 +492,11 @@ namespace Clippi.ViewModels
                     {
                         var message = root.TryGetProperty("message", out var messageElement) && messageElement.ValueKind == JsonValueKind.String
                             ? messageElement.GetString()
-                            : "任务处理失败";
+                            : L10n.Get("error.taskFailed");
 
                         IsProcessing = false;
                         _currentTaskId = 0;
-                        StatusMessage = message ?? "任务处理失败";
+                        StatusMessage = message ?? L10n.Get("error.taskFailed");
                         ClippiCore.ClearProgressCallback();
                         return;
                     }
@@ -504,30 +505,30 @@ namespace Clippi.ViewModels
                     {
                         IsProcessing = false;
                         _currentTaskId = 0;
-                        StatusMessage = "处理完成";
+                        StatusMessage = L10n.Get("status.completed");
                         ClippiCore.ClearProgressCallback();
                         return;
                     }
                 }
 
-                var progressMessage = "处理中...";
+                var progressMessage = L10n.Get("status.processing");
                 if (root.TryGetProperty("speed", out var speed) && speed.ValueKind == JsonValueKind.String)
                 {
                     var speedText = speed.GetString();
                     if (!string.IsNullOrWhiteSpace(speedText))
-                        progressMessage += $" 速度: {speedText}";
+                        progressMessage += L10n.Format("status.processing.speed", speedText);
                 }
 
                 if (root.TryGetProperty("eta_secs", out var eta) && eta.ValueKind == JsonValueKind.Number && eta.TryGetInt64(out long etaSecs))
                 {
-                    progressMessage += $" 剩余: {etaSecs}秒";
+                    progressMessage += L10n.Format("status.processing.eta", etaSecs);
                 }
 
                 StatusMessage = progressMessage;
             }
             catch (Exception ex)
             {
-                StatusMessage = $"进度解析失败: {ex.Message}";
+                StatusMessage = L10n.Format("error.progressParseFailed", ex.Message);
             }
         }
 
