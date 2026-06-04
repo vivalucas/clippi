@@ -220,12 +220,18 @@ namespace Clippi
 
             var controlsEnabled = !ViewModel.IsProcessing;
             OperationSelector.IsEnabled = controlsEnabled;
-            TrimPanel.IsEnabled = controlsEnabled;
-            FormatPanel.IsEnabled = controlsEnabled;
-            ScalePanel.IsEnabled = controlsEnabled;
-            AudioPanel.IsEnabled = controlsEnabled;
+            SetPanelEnabled(TrimPanel, controlsEnabled);
+            SetPanelEnabled(FormatPanel, controlsEnabled);
+            SetPanelEnabled(ScalePanel, controlsEnabled);
+            SetPanelEnabled(AudioPanel, controlsEnabled);
             OutputPathBox.IsEnabled = controlsEnabled;
             ChooseOutputButton.IsEnabled = controlsEnabled;
+        }
+
+        private static void SetPanelEnabled(FrameworkElement element, bool enabled)
+        {
+            element.IsHitTestVisible = enabled;
+            element.Opacity = enabled ? 1.0 : 0.55;
         }
 
         private void UpdateOutputPath()

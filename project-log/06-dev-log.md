@@ -2,7 +2,7 @@
 
 ---
 
-## 2026-06-04（v1.0.7 全量评审修复、图标更新与体验打磨）
+## 2026-06-04（v1.0.8 全量评审修复、图标更新与体验打磨）
 
 **触发原因**：用户要求先阅读 project-log 规范并全量评审项目，确认后一次性修复全部确认问题，推进版本并触发新版本构建。
 
@@ -14,8 +14,9 @@
 5. `windows/Clippi/MainWindow.xaml` / `MainWindow.xaml.cs` — 增加状态区和“复制详情”按钮；处理期间禁用参数和输出路径控件。
 6. `macos/Clippi/*.lproj/Localizable.strings` / `windows/Clippi/Strings/*/Resources.resw` — 补充复制错误详情的本地化文案。
 7. `macos/Clippi/Assets.xcassets/AppIcon.appiconset/icon_1024x1024.png` — 替换为新的 macOS Tahoe 风格简洁图标。
-8. `core/Cargo.toml`, `macos/Clippi.xcodeproj/project.pbxproj`, `windows/Clippi/Clippi.csproj`, `windows/Clippi/app.manifest` — 版本号推进到 `1.0.7`。
+8. `core/Cargo.toml`, `macos/Clippi.xcodeproj/project.pbxproj`, `windows/Clippi/Clippi.csproj`, `windows/Clippi/app.manifest` — 版本号推进到 `1.0.8`。
 9. `project-log/05-current-status.md`, `project-log/11-code-review-log.md`, `project-log/06-dev-log.md` — 记录本轮评审、修复和交接信息。
+10. `windows/Clippi/MainWindow.xaml.cs` — `v1.0.7` Windows Actions 暴露 `StackPanel.IsEnabled` 不存在，改用 `IsHitTestVisible` + `Opacity` 锁定 panel 交互，并推进到 `v1.0.8` 重新发布。
 
 **遇到的问题**：
 - 本机没有 `cargo` 和 `dotnet`，无法本地完成 Rust 单元测试和 Windows 编译。
@@ -37,7 +38,7 @@
 - Xcode project 可列出 `Clippi` target / scheme。
 - shell / PowerShell 脚本语法检查通过。
 - `git diff --check` 通过。
-- Rust / Windows 完整编译未运行，原因：本机无 `cargo` / `dotnet`。
+- Rust / Windows 本地完整编译未运行，原因：本机无 `cargo` / `dotnet`；`v1.0.7` Windows Actions 已暴露并修复 WinUI `StackPanel.IsEnabled` 编译问题，`v1.0.8` 待 Actions 验证。
 
 ## 2026-06-04（v1.0.4 安全输出、异步启动和发布修复）
 
