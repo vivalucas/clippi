@@ -60,4 +60,5 @@
   <data name="ErrorTrimStartBeforeDuration" xml:space="preserve"><value>裁剪开始时间不能超过视频时长</value></data>
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>进度解析失败: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>拖放到这里</value></data>
+  <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>复制详情</value></data>
 </root>

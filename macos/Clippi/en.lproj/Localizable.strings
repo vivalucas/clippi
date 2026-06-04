@@ -35,6 +35,7 @@
 "error.unsupportedVideo" = "Please choose a supported video file.";
 "error.startTaskFailed" = "Failed to start task.";
 "error.taskFailed" = "Task failed.";
+"error.copyDetails" = "Copy Details";
 "error.probeFailed" = "Could not read file information.";
 "error.outputPathRequired" = "Please choose an output path.";
 "error.outputDirMissing" = "The output folder does not exist.";

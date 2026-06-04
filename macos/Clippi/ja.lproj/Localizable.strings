@@ -35,6 +35,7 @@
 "error.unsupportedVideo" = "対応している動画ファイルを選択してください。";
 "error.startTaskFailed" = "タスクを開始できませんでした。";
 "error.taskFailed" = "タスク処理に失敗しました。";
+"error.copyDetails" = "詳細をコピー";
 "error.probeFailed" = "ファイル情報を読み取れませんでした。";
 "error.outputPathRequired" = "出力先を選択してください。";
 "error.outputDirMissing" = "出力フォルダが存在しません。";

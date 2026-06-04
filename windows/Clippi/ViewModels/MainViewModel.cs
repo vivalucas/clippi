@@ -3,9 +3,11 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Clippi;
 using Microsoft.UI.Dispatching;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Clippi.ViewModels
 {
@@ -32,9 +34,11 @@ namespace Clippi.ViewModels
         private bool _isProcessing;
         private double _progress;
         private string _statusMessage = "";
+        private string _errorDetails = "";
         private string _gpuEncoder = L10n.Get("EncoderSoftware");
 
         private ulong _currentTaskId;
+        private int _probeGeneration;
         private readonly DispatcherQueue? _dispatcherQueue;
         private sealed record ProbeResult(
             string Path,
@@ -167,6 +171,17 @@ namespace Clippi.ViewModels
             set { _statusMessage = value; OnPropertyChanged(); }
         }
 
+        public string ErrorDetails
+        {
+            get => _errorDetails;
+            set
+            {
+                _errorDetails = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasErrorDetails));
+            }
+        }
+
         public string GpuEncoder
         {
             get => _gpuEncoder;
@@ -175,6 +190,7 @@ namespace Clippi.ViewModels
 
         public bool HasFile => !string.IsNullOrEmpty(FilePath);
         public bool HasNoFile => !HasFile;
+        public bool HasErrorDetails => !string.IsNullOrWhiteSpace(ErrorDetails);
 
         public MainViewModel()
         {
@@ -253,14 +269,26 @@ namespace Clippi.ViewModels
         {
             if (!IsSupportedVideo(path))
             {
-                DispatchToUi(() => StatusMessage = L10n.Get("ErrorUnsupportedVideo"));
+                DispatchToUi(() =>
+                {
+                    ErrorDetails = "";
+                    StatusMessage = L10n.Get("ErrorUnsupportedVideo");
+                });
                 return;
             }
 
+            var generation = Interlocked.Increment(ref _probeGeneration);
             var result = await Task.Run(() => ParseProbeResult(path));
+            if (generation != _probeGeneration)
+                return;
+
             if (result == null)
             {
-                DispatchToUi(() => StatusMessage = L10n.Get("ErrorReadFileFailed"));
+                DispatchToUi(() =>
+                {
+                    ErrorDetails = "";
+                    StatusMessage = L10n.Get("ErrorReadFileFailed");
+                });
                 return;
             }
 
@@ -288,6 +316,7 @@ namespace Clippi.ViewModels
 
             IsProcessing = true;
             Progress = 0;
+            ErrorDetails = "";
             StatusMessage = L10n.Get("StatusProcessing");
 
             var config = BuildTaskConfig();
@@ -388,7 +417,12 @@ namespace Clippi.ViewModels
 
         public string GetOutputExtension()
         {
-            return SelectedOperation == "extractAudio" ? AudioFormat : OutputFormat;
+            return SelectedOperation switch
+            {
+                "extractAudio" => AudioFormat,
+                "convert" => OutputFormat,
+                _ => GetInputExtensionOrDefault()
+            };
         }
 
         public void RefreshOutputPath()
@@ -401,6 +435,8 @@ namespace Clippi.ViewModels
 
         private bool ValidateBeforeStart()
         {
+            ErrorDetails = "";
+
             if (string.IsNullOrWhiteSpace(FilePath))
                 return false;
 
@@ -447,6 +483,11 @@ namespace Clippi.ViewModels
                 {
                     StatusMessage = L10n.Get("ErrorTrimStartBeforeDuration");
                     return false;
+                }
+
+                if (Duration > 0 && EndTime > Duration)
+                {
+                    EndTime = Duration;
                 }
             }
 
@@ -496,7 +537,8 @@ namespace Clippi.ViewModels
 
                         IsProcessing = false;
                         _currentTaskId = 0;
-                        StatusMessage = message ?? L10n.Get("ErrorTaskFailed");
+                        ErrorDetails = message ?? "";
+                        StatusMessage = stateText == "cancelled" ? L10n.Get("StatusCancelled") : L10n.Get("ErrorTaskFailed");
                         ClippiCore.ClearProgressCallback();
                         return;
                     }
@@ -535,6 +577,22 @@ namespace Clippi.ViewModels
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private string GetInputExtensionOrDefault()
+        {
+            var ext = Path.GetExtension(FilePath).TrimStart('.').ToLowerInvariant();
+            return string.IsNullOrWhiteSpace(ext) ? "mp4" : ext;
+        }
+
+        public void CopyErrorDetailsToClipboard()
+        {
+            if (string.IsNullOrWhiteSpace(ErrorDetails))
+                return;
+
+            var package = new DataPackage();
+            package.SetText(ErrorDetails);
+            Clipboard.SetContent(package);
         }
     }
 }

@@ -37,18 +37,22 @@ struct MainView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .disabled(viewModel.isProcessing)
 
             // Operation-specific controls
             operationControls
+                .disabled(viewModel.isProcessing)
 
             // Output path
             HStack {
                 TextField(L10n.string("output.path"), text: $viewModel.outputPath)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(viewModel.isProcessing)
 
                 Button(L10n.string("choose.ellipsis")) {
                     selectOutputPath()
                 }
+                .disabled(viewModel.isProcessing)
             }
 
             // Progress and actions
@@ -75,6 +79,11 @@ struct MainView: View {
         .padding()
         .frame(minWidth: 600, minHeight: 500)
         .alert(L10n.string("error.title"), isPresented: $viewModel.showError) {
+            if !viewModel.errorDetails.isEmpty {
+                Button(L10n.string("error.copyDetails")) {
+                    viewModel.copyErrorDetailsToPasteboard()
+                }
+            }
             Button(L10n.string("ok")) {}
         } message: {
             Text(viewModel.errorMessage)

@@ -60,4 +60,5 @@
   <data name="ErrorTrimStartBeforeDuration" xml:space="preserve"><value>トリミング開始時間は動画の長さを超えられません。</value></data>
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>進捗の解析に失敗しました: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>ここにドロップ</value></data>
+  <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>詳細をコピー</value></data>
 </root>

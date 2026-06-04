@@ -28,6 +28,7 @@ A 评审（发现） → B 验证 + 修复确认项 + 评审（发现）
 | 5 | AI 开发助手 | 2026-05-15 | 10 | F 轮全部确认已修复 |
 | 6 | cc-mimo | 2026-05-15 | 1 | 不成立 |
 | 7 | AI 开发助手 | 2026-06-04 | 5 已确认 + 2 待确认 | 本轮自检后已修复确认项，待 CI / 真机验证 |
+| 8 | AI 开发助手 | 2026-06-04 | 6 已确认 + 3 待确认 | 已修复 5 项，`Cargo.lock` 待 Rust 环境生成，待 CI / 真机验证 |
 
 ## 构建失败复盘 / 下次检查清单
 
@@ -607,3 +608,99 @@ E 轮 10 个问题全部确认已修复。
 - **状态**：待 CI 验证
 - **位置**：`.github/workflows/build-windows.yml`, `windows/Clippi/Clippi.csproj`
 - **说明**：最近 Windows CI 成功，但本机无 `dotnet`，本轮改动后仍需通过 GitHub Actions 验证 `clippi_core.dll`、`ffmpeg.exe`、`ffprobe.exe` 均在 zip 内且运行时可被找到。
+
+---
+
+## H — 验证 + 第八轮评审
+
+**评审人**：AI 开发助手
+**日期**：2026-06-04
+**范围**：全量代码（Rust 核心库、macOS SwiftUI、Windows WinUI 3、CI/CD、脚本、文档）
+
+### H 的独立评审发现与修复
+
+#### 问题 34：非转换类操作会继承隐藏输出格式，可能生成不可用命令
+
+- **类型**：Bug / 可用性
+- **严重程度**：中
+- **状态**：已修复，待样本验证
+- **位置**：`macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：用户从“转换格式 WebM”切到裁剪 / 缩放 / 去除音频后，默认输出扩展名仍可能使用隐藏的 `outputFormat`。快速裁剪或去音频会复制视频流，MP4/H.264/AAC 复制到 WebM 容器容易失败。
+- **自检结论**：成立。输出扩展名由全局 `outputFormat` 推导，而非当前操作语义。
+- **修复**：`extractAudio` 使用音频格式，`convert` 使用输出格式，`trim` / `scale` / `removeAudio` 默认沿用输入文件扩展名。
+
+#### 问题 35：快速连续选择文件时旧 ffprobe 结果可能覆盖新文件
+
+- **类型**：Bug / 稳定性
+- **严重程度**：中
+- **状态**：已修复，待样本验证
+- **位置**：`macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：两端 probe 均异步执行，但应用结果时没有请求序号或当前路径校验。A 文件 probe 慢、B 文件 probe 快时，A 可能最后覆盖 UI。
+- **自检结论**：成立。异步任务结果没有防串台标识。
+- **修复**：两端 ViewModel 增加 `probeGeneration`，只应用最新一次导入请求的 probe 结果。
+
+#### 问题 36：裁剪结束时间超出视频时长会导致进度估算失真
+
+- **类型**：Bug / 交互稳定性
+- **严重程度**：中
+- **状态**：已修复，待样本验证
+- **位置**：`core/src/task.rs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：UI 只校验 `start` 未超过时长，不限制 `end`；Rust 对 trim 进度使用 `end - start`。10 秒视频填 `end=999` 时，实际 ffmpeg 到 EOF 就结束，进度会低百分比后直接 completed。
+- **自检结论**：成立。当前进度总时长可能远大于实际可处理时长。
+- **修复**：两端 UI 启动前将超界 end 夹取到视频时长；Rust 核心也按源时长夹取后的实际 trim 区间构建 `-t` 并计算进度。
+
+#### 问题 37：普通错误提示直接透出完整 ffmpeg stderr
+
+- **类型**：UX / 隐私风险
+- **严重程度**：中
+- **状态**：已修复，待样本验证
+- **位置**：`macos/Clippi/ViewModels/MainViewModel.swift`, `macos/Clippi/Views/MainView.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`, `windows/Clippi/MainWindow.xaml`
+- **描述**：Rust 将 ffmpeg stderr 放入 progress `message`，两端 UI 直接展示，可能出现超长、技术化、含本地路径的错误文本。
+- **自检结论**：成立。设计要求“友好提示 + 原始日志展开”，当前 UI 没有分层。
+- **修复**：失败时展示短友好提示，原始详情保存到 `errorDetails`，两端提供“复制详情”入口。
+
+#### 问题 38：桌面应用缺少 `core/Cargo.lock`，Release 构建不可复现
+
+- **类型**：构建可复现性
+- **严重程度**：低
+- **状态**：待修复
+- **位置**：`core/Cargo.toml`, 缺失 `core/Cargo.lock`
+- **描述**：`.gitignore` 已不忽略 lockfile，但仓库中仍没有 `core/Cargo.lock`。CI 会解析依赖最新兼容版本，后续构建可能漂移。
+- **自检结论**：成立。`find core -name Cargo.lock` 无输出；本机无 `cargo`，无法生成。
+- **建议修复**：在有 Rust 工具链环境运行 `cargo generate-lockfile --manifest-path core/Cargo.toml` 或 `cargo build --manifest-path core/Cargo.toml` 后提交生成的 `core/Cargo.lock`。
+
+#### 问题 39：处理过程中仍可修改操作、路径和参数，容易造成状态错觉
+
+- **类型**：UX / 可用性
+- **严重程度**：低
+- **状态**：已修复，待样本验证
+- **位置**：`macos/Clippi/Views/MainView.swift`, `windows/Clippi/MainWindow.xaml.cs`
+- **描述**：开始处理后主要控件仍可编辑。当前任务使用启动瞬间的 config，用户改动不会影响正在跑的任务，但界面没有说明，容易误以为已生效。
+- **自检结论**：成立。两端仅切换按钮 / 进度区域，未锁定参数控件。
+- **修复**：处理期间禁用操作选择、参数区域和输出路径选择。
+
+### H 的待确认问题
+
+#### 待确认 1：硬件编码在真机上的兼容性
+
+- **类型**：兼容性
+- **严重程度**：中
+- **状态**：待真机验证
+- **位置**：`core/src/gpu.rs`, 两端 ViewModel
+- **说明**：仍需在 NVIDIA / Intel QSV / VideoToolbox 真机上跑真实样本，确认硬件编码链路稳定。
+
+#### 待确认 2：Windows publish 产物运行时布局
+
+- **类型**：发布验证
+- **严重程度**：中
+- **状态**：待 CI 验证
+- **位置**：`.github/workflows/build-windows.yml`, `windows/Clippi/Clippi.csproj`
+- **说明**：本机无 `dotnet`，需通过 GitHub Actions 验证 `clippi_core.dll`、`ffmpeg.exe`、`ffprobe.exe` 均在 zip 内且运行时可被找到。
+
+#### 待确认 3：ffprobe / GPU 探测超时策略
+
+- **类型**：稳定性
+- **严重程度**：低
+- **状态**：待确认
+- **位置**：`core/src/probe.rs`, `core/src/gpu.rs`
+- **说明**：当前探测没有超时。通常不会挂，但损坏文件、网络盘、异常 ffmpeg 进程可能让后台任务长期不返回。

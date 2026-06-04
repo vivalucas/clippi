@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-06-04（v1.0.7 全量评审修复、图标更新与体验打磨）
+
+**触发原因**：用户要求先阅读 project-log 规范并全量评审项目，确认后一次性修复全部确认问题，推进版本并触发新版本构建。
+
+**修改内容**：
+1. `core/src/task.rs` — 校验裁剪时间必须为有限值；裁剪结束时间超过源视频时，用源时长夹取后的实际区间构建 `-t` 参数并计算进度，避免低百分比直接完成。
+2. `macos/Clippi/ViewModels/MainViewModel.swift` — 增加异步导入 generation 防串台；按操作选择输出扩展名；裁剪超界时自动夹取 end；失败时展示友好提示并保存原始错误详情用于复制。
+3. `macos/Clippi/Views/MainView.swift` — 处理期间禁用操作、参数和输出路径控件；错误弹窗增加“复制详情”按钮。
+4. `windows/Clippi/ViewModels/MainViewModel.cs` — 增加异步导入 generation 防串台；按操作选择输出扩展名；裁剪超界时自动夹取 end；失败时保存原始错误详情并提供复制到剪贴板能力。
+5. `windows/Clippi/MainWindow.xaml` / `MainWindow.xaml.cs` — 增加状态区和“复制详情”按钮；处理期间禁用参数和输出路径控件。
+6. `macos/Clippi/*.lproj/Localizable.strings` / `windows/Clippi/Strings/*/Resources.resw` — 补充复制错误详情的本地化文案。
+7. `macos/Clippi/Assets.xcassets/AppIcon.appiconset/icon_1024x1024.png` — 替换为新的 macOS Tahoe 风格简洁图标。
+8. `core/Cargo.toml`, `macos/Clippi.xcodeproj/project.pbxproj`, `windows/Clippi/Clippi.csproj`, `windows/Clippi/app.manifest` — 版本号推进到 `1.0.7`。
+9. `project-log/05-current-status.md`, `project-log/11-code-review-log.md`, `project-log/06-dev-log.md` — 记录本轮评审、修复和交接信息。
+
+**遇到的问题**：
+- 本机没有 `cargo` 和 `dotnet`，无法本地完成 Rust 单元测试和 Windows 编译。
+- `core/Cargo.lock` 仍未生成，发布构建可复现性仍需 Rust 环境补齐。
+
+**解决方式**：
+- 使用可用工具完成 Swift 类型检查、Xcode 工程解析、脚本语法和 diff 检查；Rust / Windows 完整构建交给 GitHub Actions 验证。
+- 将 `Cargo.lock` 缺失保留为待处理风险，后续在有 Rust 工具链环境生成并提交。
+
+**验证方式**：
+- `swiftc -typecheck ... -import-objc-header macos/Clippi/ClippiCore.h`
+- `xcodebuild -list -project macos/Clippi.xcodeproj`
+- `bash -n scripts/download_ffmpeg.sh scripts/build-core.sh`
+- PowerShell `PSParser` 解析 `scripts/download_ffmpeg.ps1` 和 `scripts/build-core.ps1`
+- `git diff --check`
+
+**验证结果**：
+- Swift 类型检查通过。
+- Xcode project 可列出 `Clippi` target / scheme。
+- shell / PowerShell 脚本语法检查通过。
+- `git diff --check` 通过。
+- Rust / Windows 完整编译未运行，原因：本机无 `cargo` / `dotnet`。
+
 ## 2026-06-04（v1.0.4 安全输出、异步启动和发布修复）
 
 **触发原因**：用户要求在全量评审后修复所有确认项，统一优化体验，推进版本并触发新 Release。

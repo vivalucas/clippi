@@ -35,6 +35,7 @@
 "error.unsupportedVideo" = "请选择支持的视频文件";
 "error.startTaskFailed" = "启动任务失败";
 "error.taskFailed" = "任务处理失败";
+"error.copyDetails" = "复制详情";
 "error.probeFailed" = "无法读取文件信息";
 "error.outputPathRequired" = "请选择输出路径";
 "error.outputDirMissing" = "输出目录不存在";

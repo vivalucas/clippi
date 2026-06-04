@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import AppKit
 
 @MainActor
 class MainViewModel: ObservableObject {
@@ -13,6 +14,7 @@ class MainViewModel: ObservableObject {
     @Published var statusMessage = ""
     @Published var showError = false
     @Published var errorMessage = ""
+    @Published var errorDetails = ""
     @Published var gpuInfo: GpuInfo?
 
     // Trim settings
@@ -35,6 +37,7 @@ class MainViewModel: ObservableObject {
     @Published var outputPath: String = ""
 
     private var currentTaskId: UInt64 = 0
+    private var probeGeneration = 0
 
     enum OperationType: CaseIterable {
         case trim
@@ -130,9 +133,12 @@ class MainViewModel: ObservableObject {
         }
 
         let path = url.path
+        probeGeneration += 1
+        let generation = probeGeneration
 
         Task {
             let result = await Self.loadProbeResult(path: path)
+            guard generation == probeGeneration else { return }
             applyProbeResult(result, path: path)
         }
     }
@@ -242,7 +248,10 @@ class MainViewModel: ObservableObject {
                 isProcessing = false
                 currentTaskId = 0
                 ClippiFFI.clearProgressCallback()
-                showError(dict["message"] as? String ?? L10n.string("error.taskFailed"))
+                showError(
+                    L10n.string(state == "cancelled" ? "status.cancelled" : "error.taskFailed"),
+                    details: dict["message"] as? String ?? ""
+                )
                 return
             default:
                 break
@@ -265,7 +274,7 @@ class MainViewModel: ObservableObject {
         let url = URL(fileURLWithPath: input)
         let name = url.deletingPathExtension().lastPathComponent
         let dir = url.deletingLastPathComponent()
-        let ext = outputExtension()
+        let ext = outputExtension(inputPath: input)
         let initial = dir.appendingPathComponent("\(name)_output.\(ext)").path
         return uniqueOutputPath(for: initial)
     }
@@ -344,6 +353,10 @@ class MainViewModel: ObservableObject {
                 showError(L10n.string("error.trimStartBeforeDuration"))
                 return false
             }
+
+            if let duration = fileInfo?.duration, duration > 0, endTime > duration {
+                endTime = duration
+            }
         }
 
         outputPath = trimmedOutput
@@ -370,11 +383,21 @@ class MainViewModel: ObservableObject {
         return path
     }
 
-    private func outputExtension() -> String {
-        if selectedOperation == .extractAudio {
+    private func outputExtension(inputPath: String? = nil) -> String {
+        switch selectedOperation {
+        case .extractAudio:
             return audioFormat.rawValue.lowercased()
+        case .convert:
+            return outputFormat.rawValue.lowercased()
+        case .trim, .scale, .removeAudio:
+            if let inputPath {
+                let inputExtension = URL(fileURLWithPath: inputPath).pathExtension.lowercased()
+                if !inputExtension.isEmpty {
+                    return inputExtension
+                }
+            }
+            return "mp4"
         }
-        return outputFormat.rawValue.lowercased()
     }
 
     private static func isSupportedVideo(_ url: URL) -> Bool {
@@ -382,8 +405,15 @@ class MainViewModel: ObservableObject {
         return ["mp4", "mkv", "mov", "webm", "avi", "m4v"].contains(ext)
     }
 
-    private func showError(_ message: String) {
+    private func showError(_ message: String, details: String = "") {
         errorMessage = message
+        errorDetails = details
         showError = true
+    }
+
+    func copyErrorDetailsToPasteboard() {
+        guard !errorDetails.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(errorDetails, forType: .string)
     }
 }

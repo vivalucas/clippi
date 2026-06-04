@@ -217,11 +217,25 @@ namespace Clippi
             StartButton.Visibility = !ViewModel.IsProcessing && ViewModel.HasFile
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+
+            var controlsEnabled = !ViewModel.IsProcessing;
+            OperationSelector.IsEnabled = controlsEnabled;
+            TrimPanel.IsEnabled = controlsEnabled;
+            FormatPanel.IsEnabled = controlsEnabled;
+            ScalePanel.IsEnabled = controlsEnabled;
+            AudioPanel.IsEnabled = controlsEnabled;
+            OutputPathBox.IsEnabled = controlsEnabled;
+            ChooseOutputButton.IsEnabled = controlsEnabled;
         }
 
         private void UpdateOutputPath()
         {
             ViewModel.RefreshOutputPath();
+        }
+
+        private void OnCopyErrorDetailsClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel.CopyErrorDetailsToClipboard();
         }
     }
 }

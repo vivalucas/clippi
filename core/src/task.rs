@@ -269,7 +269,8 @@ fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
             if !fast_mode {
                 args.extend(["-ss".to_string(), start.to_string()]);
             }
-            args.extend(["-t".to_string(), (*end - *start).to_string()]);
+            let trim_duration = trim_duration_secs(config).unwrap_or((*end - *start).max(0.0));
+            args.extend(["-t".to_string(), trim_duration.to_string()]);
             if *fast_mode {
                 args.extend(["-c".to_string(), "copy".to_string()]);
             } else {
@@ -328,6 +329,9 @@ fn validate_config(config: &TaskConfig) -> Result<()> {
     }
 
     if let Operation::Trim { start, end, .. } = &config.operation {
+        if !start.is_finite() || !end.is_finite() {
+            return Err(CoreError::InvalidParams("trim times must be finite".to_string()).into());
+        }
         if *start < 0.0 || *end <= *start {
             return Err(CoreError::InvalidParams("trim end time must be greater than start time".to_string()).into());
         }
@@ -338,10 +342,24 @@ fn validate_config(config: &TaskConfig) -> Result<()> {
 
 fn task_duration_secs(config: &TaskConfig) -> f64 {
     if let Operation::Trim { start, end, .. } = &config.operation {
-        return (*end - *start).max(0.0);
+        return trim_duration_secs(config).unwrap_or((*end - *start).max(0.0));
     }
 
     probe_file(&config.input_path)
         .map(|info| info.duration_secs)
         .unwrap_or(0.0)
+}
+
+fn trim_duration_secs(config: &TaskConfig) -> Option<f64> {
+    let Operation::Trim { start, end, .. } = &config.operation else {
+        return None;
+    };
+
+    let requested = (*end - *start).max(0.0);
+    let source_duration = probe_file(&config.input_path).ok()?.duration_secs;
+    if !(source_duration.is_finite() && source_duration > 0.0) {
+        return Some(requested);
+    }
+
+    Some((source_duration - *start).max(0.0).min(requested))
 }

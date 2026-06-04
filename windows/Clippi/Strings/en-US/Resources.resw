@@ -60,4 +60,5 @@
   <data name="ErrorTrimStartBeforeDuration" xml:space="preserve"><value>Trim start time cannot exceed the video duration.</value></data>
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>Failed to parse progress: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>Drop here</value></data>
+  <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>Copy Details</value></data>
 </root>
