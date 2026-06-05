@@ -55,14 +55,31 @@ clippi/
 │   │   └── error.rs               # Error types
 │   └── Cargo.toml
 ├── macos/                         # macOS SwiftUI project
+│   ├── Clippi.xcodeproj/
 │   └── Clippi/
+│       ├── ClippiApp.swift        # App entry
+│       ├── ClippiCore.h           # Swift bridging header
+│       ├── FFI/ClippiFFI.swift    # Swift FFI wrapper
 │       ├── Localization.swift     # macOS localization helper
-│       └── *.lproj/               # zh-Hans / en / ja localized resources
+│       ├── *.lproj/               # zh-Hans / en / ja localized resources
+│       ├── ViewModels/
+│       └── Views/
 ├── windows/                       # Windows WinUI 3 project
 │   └── Clippi/
+│       ├── App.xaml/cs
+│       ├── MainWindow.xaml/cs
 │       ├── Localization.cs        # Windows localization helper
-│       └── Strings/               # zh-CN / en-US / ja-JP .resw resources
+│       ├── Strings/               # zh-CN / en-US / ja-JP .resw resources
+│       ├── ViewModels/
+│       └── ClippiCore.cs          # C# P/Invoke wrapper
 ├── scripts/
+│   ├── download_ffmpeg.sh
+│   ├── download_ffmpeg.ps1
+│   ├── build-core.sh
+│   └── build-core.ps1
+├── .github/workflows/
+│   ├── build-macos.yml
+│   └── build-windows.yml
 ├── LICENSE
 ├── README.md                      # 简体中文
 ├── README.en.md                   # English

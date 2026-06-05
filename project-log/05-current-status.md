@@ -1,9 +1,9 @@
 # 当前状态
 
-> **最后更新**：2026-06-04
+> **最后更新**：2026-06-05
 > **最后更新人**：AI 开发助手
-> **最近开发日志**：2026-06-04 v1.0.8 全量评审修复、图标更新与体验打磨
-> **当前可信度**：本轮代码已更新；本地完成 Swift 类型检查、Xcode 工程解析、脚本语法和 diff 检查；Rust / Windows 完整编译待 GitHub Actions 验证
+> **最近开发日志**：2026-06-05 复核评审项并修复可确认问题
+> **当前可信度**：本轮代码已更新；本地完成 Swift 类型检查和 diff 检查；Rust / Windows 完整编译待 GitHub Actions 验证
 
 ## 当前版本
 
@@ -14,9 +14,11 @@
 
 **V1.0.8** — 全量评审后修复输出扩展名继承、异步导入竞态、裁剪超界进度估算、错误详情分层和处理期间参数锁定；更换 macOS AppIcon。
 
+**V1.0.9** — 复核评审项后补充 ffprobe / GPU 探测超时、无音轨提取前置提示、Windows 启动校验状态恢复、Windows 输出目录自动避让，并同步英文 / 日文 README。
+
 ## 当前阶段
 
-核心功能代码完成 v1.0.8 稳定性和体验修复，等待 GitHub Actions 与真实视频样本验证。
+核心功能代码完成 v1.0.9 复核修复，等待 GitHub Actions 与真实视频样本验证。
 
 ## 已完成
 
@@ -41,10 +43,11 @@
 - GPL-2.0 开源协议
 - v1.0.4 本轮修复：macOS DMG `dist/` 目录缺失、输出文件防覆盖、启动前路径/裁剪校验、任务准备异步化、下载脚本 SHA256 校验
 - v1.0.8 本轮修复：输出扩展名按操作选择、导入异步结果防串台、裁剪结束时间超界自动夹取、ffmpeg 原始错误详情分层复制、处理期间锁定参数控件、macOS 图标重绘
+- v1.0.9 复核修复：ffprobe / GPU 探测超时、音频提取无音轨前置提示、Windows 启动校验 UI 状态恢复、Windows 输出目录选择自动避让、英文/日文 README 结构同步
 
 ## 进行中
 
-- 等待 v1.0.8 GitHub Actions 构建与 Release 资产验证
+- 等待 v1.0.9 GitHub Actions 构建与 Release 资产验证
 - 等待真实视频样本端到端验证
 
 ## 待处理
@@ -72,7 +75,7 @@
 | 问题 | 影响 | 状态 | 备注 |
 |------|------|------|------|
 | 无 Apple 开发者账号 | macOS 分发需用户手动绕过 Gatekeeper | 临时方案 | README 中提供 xattr -cr 命令 |
-| ffmpeg 版本选择 | 需确定具体版本号和下载源 | 待确定 | macOS: evermeet.cx, Windows: BtbN/FFmpeg-Builds |
+| ffmpeg 版本选择 | 需保持发布构建可复现 | 已固定，待 CI 持续验证 | macOS: evermeet.cx 7.1.1 zip + SHA256；Windows: BtbN autobuild-2026-06-03-14-37 + SHA256 |
 
 ## 下一步
 
@@ -83,14 +86,14 @@
 
 ## 任务交接
 
-**当前任务**：v1.0.8 全量评审修复、提交发布并等待 CI / Release 验证
+**当前任务**：v1.0.9 后续复核修复并等待 CI / Release 验证
 
-**已完成**：阅读 project-log 与全量代码；完成全量评审；修复输出扩展名继承、异步导入竞态、裁剪超界进度估算、错误详情分层和处理期间参数锁定；更换 macOS AppIcon；版本推进到 v1.0.8
+**已完成**：阅读 project-log 与全量代码；完成全量评审；修复输出扩展名继承、异步导入竞态、裁剪超界进度估算、错误详情分层和处理期间参数锁定；更换 macOS AppIcon；复核并修复探测超时、无音轨提取提示、Windows 启动校验状态和输出目录避让；版本推进到 v1.0.9
 
-**未完成**：真实视频样本端到端验证；本地 Rust/.NET 验证仍因本机无 cargo / dotnet 未运行；v1.0.8 Actions / Release 结果待确认
+**未完成**：真实视频样本端到端验证；本地 Rust/.NET 验证仍因本机无 cargo / dotnet 未运行；v1.0.9 Actions / Release 结果待确认；`core/Cargo.lock` 仍需在 Rust 环境生成
 
-**下一步建议**：推送 v1.0.8 后检查 macOS / Windows Actions 结果与 Release assets；补真实视频样本验证和 Rust 单元测试
+**下一步建议**：推送 v1.0.9 后检查 macOS / Windows Actions 结果与 Release assets；补真实视频样本验证和 Rust 单元测试
 
 **风险 / 阻塞**：本机缺 Rust 和 .NET；队列串行语义仍需更完整的执行模型测试；macOS 目前 CI 只构建 active architecture；本地缺少 `core/target/release/libclippi_core.a` 阻塞 Xcode 最终链接；`core/Cargo.lock` 仍需在 Rust 环境生成并提交
 
-**相关文件**：`core/src/task.rs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `macos/Clippi/Views/MainView.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`, `windows/Clippi/MainWindow.xaml`, `windows/Clippi/MainWindow.xaml.cs`, `macos/Clippi/Assets.xcassets/AppIcon.appiconset/icon_1024x1024.png`
+**相关文件**：`core/src/probe.rs`, `core/src/gpu.rs`, `core/src/types.rs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `macos/Clippi/Views/MainView.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`, `windows/Clippi/MainWindow.xaml.cs`, `README.en.md`, `README.ja.md`

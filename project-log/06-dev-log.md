@@ -370,4 +370,36 @@
 
 ---
 
+## 2026-06-05（v1.0.9 复核评审项并修复可确认问题）
+
+**触发原因**：用户要求对本轮评审中提到的每一项再次自检，确认是 bug 或优化项后全部修复。
+
+**修改内容**：
+1. `core/src/probe.rs` — 为 ffprobe 增加 20 秒超时，避免损坏文件、网络盘或异常进程导致导入长期不返回；同时识别源文件是否包含音频流。
+2. `core/src/gpu.rs` — 为硬件编码器探测增加 8 秒超时，异常驱动或 ffmpeg 卡住时自动回退软件编码。
+3. `core/src/types.rs` — `FileInfo` 增加 `has_audio` 字段，供 UI 做音频提取前置校验。
+4. `macos/Clippi/ViewModels/MainViewModel.swift`、`windows/Clippi/ViewModels/MainViewModel.cs` — 保存音轨状态；无音轨视频执行“提取音频”时在启动前直接提示。
+5. `macos/Clippi/Views/MainView.swift` — 保存面板按当前输出扩展名约束文件类型，减少用户手动选错容器扩展名的概率。
+6. `windows/Clippi/MainWindow.xaml.cs`、`windows/Clippi/ViewModels/MainViewModel.cs` — 修复启动前校验失败后进度面板可能卡住的问题；选择输出目录时复用自动避让已有文件逻辑。
+7. `macos/Clippi/*.lproj/Localizable.strings`、`windows/Clippi/Strings/*/Resources.resw` — 补充无音轨提示的三语本地化。
+8. `README.en.md`、`README.ja.md` — 同步英文 / 日文 README 的项目结构，避免与中文版不一致。
+9. `core/Cargo.toml`, `macos/Clippi.xcodeproj/project.pbxproj`, `windows/Clippi/Clippi.csproj`, `windows/Clippi/app.manifest` — 版本号推进到 `1.0.9`，用于触发新 tag 构建。
+10. `project-log/05-current-status.md`、`project-log/11-code-review-log.md` — 更新当前状态和本轮复核记录。
+
+**遇到的问题**：
+- 本机没有 `cargo` / `dotnet`，无法生成 `core/Cargo.lock`，也无法运行 Rust / Windows 完整编译。
+
+**解决方式**：
+- 不伪造 lockfile；将 `core/Cargo.lock` 继续记录为需要 Rust 工具链生成并提交的阻塞项。
+
+**验证方式**：
+- `swiftc -typecheck macos/Clippi/ClippiApp.swift macos/Clippi/Views/MainView.swift macos/Clippi/ViewModels/MainViewModel.swift macos/Clippi/FFI/ClippiFFI.swift macos/Clippi/Localization.swift -import-objc-header macos/Clippi/ClippiCore.h`
+- `rg` 静态检查新增字段和调用路径
+
+**验证结果**：
+- Swift 类型检查通过。
+- Rust / Windows 完整编译未运行，原因：本机缺少 `cargo` / `dotnet`。
+
+---
+
 <!-- 新记录追加在上方分隔线之后、旧记录之前 -->

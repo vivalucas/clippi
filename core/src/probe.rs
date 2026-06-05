@@ -1,20 +1,27 @@
-use std::process::Command;
+use std::io::Read;
+use std::process::{Command, Output, Stdio};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use crate::types::FileInfo;
 use crate::error::CoreError;
 use crate::binaries::ffprobe_path;
 
+const FFPROBE_TIMEOUT: Duration = Duration::from_secs(20);
+
 /// Probe file metadata using ffprobe
 pub fn probe_file(path: &str) -> Result<FileInfo> {
-    let output = Command::new(ffprobe_path())
+    let mut command = Command::new(ffprobe_path());
+    command
         .args([
             "-v", "quiet",
             "-print_format", "json",
             "-show_format",
             "-show_streams",
             path,
-        ])
-        .output()
+        ]);
+
+    let output = run_with_timeout(command, FFPROBE_TIMEOUT)
         .context("Failed to run ffprobe")?;
 
     if !output.status.success() {
@@ -30,6 +37,9 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
         .as_array()
         .and_then(|streams| streams.iter().find(|s| s["codec_type"] == "video"))
         .ok_or_else(|| CoreError::ProbeFailed("No video stream found".to_string()))?;
+    let has_audio = json["streams"]
+        .as_array()
+        .is_some_and(|streams| streams.iter().any(|s| s["codec_type"] == "audio"));
 
     let width = video_stream["width"].as_u64().unwrap_or(0) as u32;
     let height = video_stream["height"].as_u64().unwrap_or(0) as u32;
@@ -56,7 +66,56 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
         codec,
         frame_rate,
         bitrate,
+        has_audio,
     })
+}
+
+fn run_with_timeout(mut command: Command, timeout: Duration) -> Result<Output> {
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("Failed to spawn ffprobe")?;
+
+    let mut stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| CoreError::ProbeFailed("Failed to read ffprobe stdout".to_string()))?;
+    let mut stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| CoreError::ProbeFailed("Failed to read ffprobe stderr".to_string()))?;
+
+    let (stdout_tx, stdout_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stdout.read_to_end(&mut buffer);
+        let _ = stdout_tx.send(buffer);
+    });
+
+    let (stderr_tx, stderr_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stderr.read_to_end(&mut buffer);
+        let _ = stderr_tx.send(buffer);
+    });
+
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait().context("Failed to poll ffprobe")? {
+            let stdout = stdout_rx.recv().unwrap_or_default();
+            let stderr = stderr_rx.recv().unwrap_or_default();
+            return Ok(Output { status, stdout, stderr });
+        }
+
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CoreError::ProbeFailed("ffprobe timed out".to_string()).into());
+        }
+
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }
 
 fn parse_frame_rate(stream: &serde_json::Value) -> f64 {

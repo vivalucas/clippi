@@ -10,6 +10,7 @@ pub struct FileInfo {
     pub codec: String,
     pub frame_rate: f64,
     pub bitrate: u64,
+    pub has_audio: bool,
 }
 
 /// GPU hardware acceleration capability

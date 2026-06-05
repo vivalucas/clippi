@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
 using System.ComponentModel;
-using System.IO;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
@@ -175,8 +174,7 @@ namespace Clippi
                 var folder = await picker.PickSingleFolderAsync();
                 if (folder != null)
                 {
-                    var fileName = Path.GetFileNameWithoutExtension(ViewModel.FileName);
-                    ViewModel.OutputPath = Path.Combine(folder.Path, $"{fileName}_output.{ViewModel.GetOutputExtension()}");
+                    ViewModel.OutputPath = ViewModel.GenerateOutputPathInDirectory(folder.Path);
                 }
             }
             catch (Exception ex)
@@ -187,10 +185,10 @@ namespace Clippi
 
         private void OnStartClick(object sender, RoutedEventArgs e)
         {
-            ProgressPanel.Visibility = Visibility.Visible;
-            StartButton.Visibility = Visibility.Collapsed;
-
-            ViewModel.StartProcessing();
+            if (ViewModel.StartProcessing())
+            {
+                UpdateProcessingUI();
+            }
         }
 
         private void OnCancelClick(object sender, RoutedEventArgs e)

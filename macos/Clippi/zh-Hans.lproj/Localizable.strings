@@ -43,3 +43,4 @@
 "error.outputExists" = "输出文件已存在，请选择其他路径";
 "error.trimEndAfterStart" = "裁剪结束时间必须大于开始时间";
 "error.trimStartBeforeDuration" = "裁剪开始时间不能超过视频时长";
+"error.noAudioTrack" = "这个视频没有可提取的音轨";

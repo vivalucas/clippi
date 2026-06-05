@@ -43,3 +43,4 @@
 "error.outputExists" = "出力ファイルはすでに存在します。別のパスを選択してください。";
 "error.trimEndAfterStart" = "トリミング終了時間は開始時間より後にしてください。";
 "error.trimStartBeforeDuration" = "トリミング開始時間は動画の長さを超えられません。";
+"error.noAudioTrack" = "この動画には抽出できる音声トラックがありません。";

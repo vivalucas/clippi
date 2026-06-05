@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 struct MainView: View {
     @StateObject private var viewModel = MainViewModel()
@@ -117,6 +118,10 @@ struct MainView: View {
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = URL(fileURLWithPath: viewModel.outputPath).lastPathComponent
+        let ext = URL(fileURLWithPath: viewModel.outputPath).pathExtension
+        if let contentType = UTType(filenameExtension: ext) {
+            panel.allowedContentTypes = [contentType]
+        }
 
         if panel.runModal() == .OK, let url = panel.url {
             viewModel.outputPath = url.path

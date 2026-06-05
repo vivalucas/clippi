@@ -714,3 +714,89 @@ E 轮 10 个问题全部确认已修复。
 - **状态**：待确认
 - **位置**：`core/src/probe.rs`, `core/src/gpu.rs`
 - **说明**：当前探测没有超时。通常不会挂，但损坏文件、网络盘、异常 ffmpeg 进程可能让后台任务长期不返回。
+
+---
+
+## I — 验证 + 第九轮评审
+
+**评审人**：AI 开发助手
+**日期**：2026-06-05
+**范围**：全量复核（Rust core、macOS SwiftUI、Windows WinUI 3、README、project-log、v1.0.9 发布准备）
+
+### 对 H 的待确认项逐条复核
+
+| H 的问题 | 确认 | 说明 |
+|----------|------|------|
+| 待确认 1：硬件编码在真机上的兼容性 | 仍待真机验证 | 代码层无法替代 NVIDIA / Intel QSV / VideoToolbox 真机样本验证；保留为发布前验证项。 |
+| 待确认 2：Windows publish 产物运行时布局 | 仍待 CI 验证 | 本机无 `dotnet`，无法验证 zip 内 `clippi_core.dll`、`ffmpeg.exe`、`ffprobe.exe` 运行时布局。 |
+| 待确认 3：ffprobe / GPU 探测超时策略 | 确认成立并修复 | `probe.rs` 增加 20 秒 ffprobe 超时；`gpu.rs` 增加 8 秒编码器探测超时。 |
+
+### I 的独立评审发现与处理
+
+#### 问题 41：Windows 启动前校验失败后可能卡在进度面板
+
+- **类型**：Bug / UX
+- **严重程度**：中
+- **状态**：已修复，待 Windows 编译验证
+- **位置**：`windows/Clippi/MainWindow.xaml.cs`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：`OnStartClick` 先显示 `ProgressPanel` 并隐藏 `StartButton`，再调用 `StartProcessing()`。如果输出路径为空、目录不存在、文件已存在或裁剪参数非法，`ValidateBeforeStart()` 返回 false，但 `IsProcessing` 不会变化，窗口不会恢复开始按钮。
+- **自检结论**：成立。用户可通过已有文件输出路径稳定触发。
+- **修复**：`StartProcessing()` 返回 `bool`；窗口只在返回 true 后刷新处理态 UI，校验失败时保持可编辑状态并展示状态文本。
+
+#### 问题 42：无音轨视频执行提取音频时只能等 ffmpeg 失败
+
+- **类型**：UX / 可用性
+- **严重程度**：中
+- **状态**：已修复，待样本验证
+- **位置**：`core/src/probe.rs`, `core/src/types.rs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：`probe_file` 之前只返回视频元信息，不告诉 UI 是否有音频流。用户对无音轨视频选择“提取音频”时，启动后才由 ffmpeg 失败。
+- **自检结论**：成立。功能设计要求源文件无音频流时提示。
+- **修复**：`FileInfo` 增加 `has_audio`；两端 UI 在启动前校验，三语提示“没有可提取的音轨”。
+
+#### 问题 43：Windows 选择输出目录后没有自动避让已有文件
+
+- **类型**：UX / 数据保护
+- **严重程度**：低
+- **状态**：已修复，待 Windows 编译验证
+- **位置**：`windows/Clippi/MainWindow.xaml.cs`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **描述**：默认导入路径会调用 `UniqueOutputPath`，但用户手动选择输出目录时直接拼接 `_output.ext`，如果目标文件存在，只能到启动时才报错。
+- **自检结论**：成立。与默认输出路径行为不一致。
+- **修复**：新增 `GenerateOutputPathInDirectory()`，选择目录时复用自动避让逻辑。
+
+#### 问题 44：macOS 保存面板允许用户选择不匹配扩展名
+
+- **类型**：UX / 可用性
+- **严重程度**：低
+- **状态**：已修复，Swift 类型检查通过
+- **位置**：`macos/Clippi/Views/MainView.swift`
+- **描述**：保存面板只填默认文件名，不限制输出扩展名；用户手动改成不匹配容器扩展名时，ffmpeg 可能失败。
+- **自检结论**：成立。不是核心功能 bug，但属于可优化项。
+- **修复**：按当前输出路径扩展名设置 `allowedContentTypes`。
+
+#### 问题 45：英文 / 日文 README 项目结构落后于中文版
+
+- **类型**：文档 / 可维护性
+- **严重程度**：低
+- **状态**：已修复
+- **位置**：`README.en.md`, `README.ja.md`
+- **描述**：英文和日文 README 的项目结构缺少 Xcode project、入口文件、FFI 文件、脚本和 workflow 细节，和中文版不一致。
+- **自检结论**：成立。
+- **修复**：同步三语 README 的项目结构层级。
+
+#### 问题 46：桌面应用缺少 `core/Cargo.lock`
+
+- **类型**：构建可复现性
+- **严重程度**：低
+- **状态**：确认成立，当前环境阻塞
+- **位置**：`core/Cargo.toml`, 缺失 `core/Cargo.lock`
+- **描述**：`.gitignore` 已不忽略 lockfile，但仓库仍缺少 `core/Cargo.lock`，Release 构建依赖解析可能漂移。
+- **自检结论**：成立。当前机器没有 `cargo`，也未发现可用的 bundled cargo。
+- **建议修复**：在有 Rust 工具链的环境执行 `cargo generate-lockfile --manifest-path core/Cargo.toml` 后提交生成文件。
+
+### I 的验证
+
+- `swiftc -typecheck macos/Clippi/ClippiApp.swift macos/Clippi/Views/MainView.swift macos/Clippi/ViewModels/MainViewModel.swift macos/Clippi/FFI/ClippiFFI.swift macos/Clippi/Localization.swift -import-objc-header macos/Clippi/ClippiCore.h`：通过
+- `xcodebuild -list -project macos/Clippi.xcodeproj`：通过
+- Windows `.resw` XML 解析：通过
+- `git diff --check`：通过
+- 本机 `cargo` / `dotnet` 不存在，Rust 和 Windows 完整编译仍需 GitHub Actions 验证

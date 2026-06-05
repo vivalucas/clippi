@@ -47,7 +47,8 @@ namespace Clippi.ViewModels
             double Duration,
             string Codec,
             double FrameRate,
-            int Bitrate);
+            int Bitrate,
+            bool HasAudio);
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -257,7 +258,8 @@ namespace Clippi.ViewModels
                     root.GetProperty("frame_rate").GetDouble(),
                     root.GetProperty("bitrate").TryGetInt64(out long bitrate)
                         ? (int)Math.Min(bitrate, int.MaxValue)
-                        : 0);
+                        : 0,
+                    root.TryGetProperty("has_audio", out var hasAudio) && hasAudio.ValueKind == JsonValueKind.True);
             }
             catch
             {
@@ -305,14 +307,15 @@ namespace Clippi.ViewModels
             Codec = result.Codec;
             FrameRate = result.FrameRate;
             Bitrate = result.Bitrate;
+            HasAudio = result.HasAudio;
 
             EndTime = Duration;
             OutputPath = GenerateOutputPath(result.Path);
         }
 
-        public void StartProcessing()
+        public bool StartProcessing()
         {
-            if (!ValidateBeforeStart()) return;
+            if (!ValidateBeforeStart()) return false;
 
             IsProcessing = true;
             Progress = 0;
@@ -337,7 +340,10 @@ namespace Clippi.ViewModels
             {
                 IsProcessing = false;
                 StatusMessage = L10n.Get("ErrorStartTaskFailed");
+                return false;
             }
+
+            return true;
         }
 
         public void CancelProcessing()
@@ -407,6 +413,14 @@ namespace Clippi.ViewModels
             var dir = Path.GetDirectoryName(inputPath) ?? "";
             var name = Path.GetFileNameWithoutExtension(inputPath);
             return UniqueOutputPath(Path.Combine(dir, $"{name}_output.{GetOutputExtension()}"));
+        }
+
+        public string GenerateOutputPathInDirectory(string directory)
+        {
+            var fileName = string.IsNullOrWhiteSpace(FileName)
+                ? "output"
+                : Path.GetFileNameWithoutExtension(FileName);
+            return UniqueOutputPath(Path.Combine(directory, $"{fileName}_output.{GetOutputExtension()}"));
         }
 
         private static bool IsSupportedVideo(string path)
@@ -489,6 +503,12 @@ namespace Clippi.ViewModels
                 {
                     EndTime = Duration;
                 }
+            }
+
+            if (SelectedOperation == "extractAudio" && !HasAudio)
+            {
+                StatusMessage = L10n.Get("ErrorNoAudioTrack");
+                return false;
             }
 
             OutputPath = Path.GetFullPath(OutputPath);
@@ -584,6 +604,8 @@ namespace Clippi.ViewModels
             var ext = Path.GetExtension(FilePath).TrimStart('.').ToLowerInvariant();
             return string.IsNullOrWhiteSpace(ext) ? "mp4" : ext;
         }
+
+        private bool HasAudio { get; set; }
 
         public void CopyErrorDetailsToClipboard()
         {

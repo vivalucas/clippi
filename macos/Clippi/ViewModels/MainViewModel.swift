@@ -102,6 +102,7 @@ class MainViewModel: ObservableObject {
         let codec: String
         let frameRate: Double
         let bitrate: Int
+        let hasAudio: Bool
         let path: String
     }
 
@@ -309,6 +310,7 @@ class MainViewModel: ObservableObject {
             codec: result["codec"] as? String ?? "unknown",
             frameRate: result["frame_rate"] as? Double ?? 0,
             bitrate: result["bitrate"] as? Int ?? 0,
+            hasAudio: result["has_audio"] as? Bool ?? false,
             path: path
         )
 
@@ -357,6 +359,11 @@ class MainViewModel: ObservableObject {
             if let duration = fileInfo?.duration, duration > 0, endTime > duration {
                 endTime = duration
             }
+        }
+
+        if selectedOperation == .extractAudio, fileInfo?.hasAudio != true {
+            showError(L10n.string("error.noAudioTrack"))
+            return false
         }
 
         outputPath = trimmedOutput

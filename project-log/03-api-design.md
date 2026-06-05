@@ -9,7 +9,7 @@
 
 | 函数 | 说明 |
 |------|------|
-| `probe_file(path: &str) -> FileInfo` | 读取文件元信息（分辨率、时长、编码、帧率、码率） |
+| `probe_file(path: &str) -> FileInfo` | 读取文件元信息（分辨率、时长、编码、帧率、码率、音频流状态） |
 | `detect_gpu() -> GpuCapability` | 探测当前系统 GPU 硬件加速能力 |
 | `run_task(task: TaskConfig, callback: ProgressFn) -> TaskHandle` | 执行单个 ffmpeg 任务 |
 | `cancel_task(task_id: u64)` | 取消正在执行的任务 |
@@ -25,6 +25,7 @@
 - 编码格式
 - 帧率
 - 码率
+- 是否包含音频流
 
 **底层实现**：调用 ffprobe 解析文件元信息。
 
@@ -68,4 +69,5 @@
 
 | 日期 | 变更内容 | 原因 |
 |------|----------|------|
+| 2026-06-05 | `FileInfo` 增加 `has_audio` 字段 | UI 需要在提取音频前提示无音轨视频 |
 | 2025-05-14 | 初始版本，记录 Rust FFI 接口定义 | 项目初始化 |

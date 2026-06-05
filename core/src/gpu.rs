@@ -1,6 +1,9 @@
 use std::process::Command;
+use std::time::{Duration, Instant};
 use crate::types::GpuCapability;
 use crate::binaries::ffmpeg_path;
+
+const ENCODER_TEST_TIMEOUT: Duration = Duration::from_secs(8);
 
 /// Detect GPU hardware acceleration capability
 pub fn detect_gpu() -> GpuCapability {
@@ -58,11 +61,33 @@ fn detect_gpu_windows() -> GpuCapability {
 
 /// Test if an encoder is available
 fn test_encoder(encoder: &str) -> bool {
-    Command::new(ffmpeg_path())
+    let mut child = match Command::new(ffmpeg_path())
         .args(["-f", "lavfi", "-i", "color=c=black:s=64x64:d=0.1", "-c:v", encoder, "-f", "null", "-"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(_) => return false,
+    };
+
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) => {
+                if started.elapsed() >= ENCODER_TEST_TIMEOUT {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return false;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return false;
+            }
+        }
+    }
 }

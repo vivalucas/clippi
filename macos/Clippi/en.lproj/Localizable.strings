@@ -43,3 +43,4 @@
 "error.outputExists" = "The output file already exists. Choose another path.";
 "error.trimEndAfterStart" = "Trim end time must be greater than start time.";
 "error.trimStartBeforeDuration" = "Trim start time cannot exceed the video duration.";
+"error.noAudioTrack" = "This video has no audio track to extract.";
