@@ -1,7 +1,7 @@
+use crate::binaries::ffmpeg_path;
+use crate::types::GpuCapability;
 use std::process::Command;
 use std::time::{Duration, Instant};
-use crate::types::GpuCapability;
-use crate::binaries::ffmpeg_path;
 
 const ENCODER_TEST_TIMEOUT: Duration = Duration::from_secs(8);
 
@@ -41,10 +41,7 @@ fn detect_gpu_macos() -> GpuCapability {
 #[cfg(target_os = "windows")]
 fn detect_gpu_windows() -> GpuCapability {
     // Try NVIDIA first, then Intel QSV
-    for (encoder, accel) in &[
-        ("h264_nvenc", "cuda"),
-        ("h264_qsv", "qsv"),
-    ] {
+    for (encoder, accel) in &[("h264_nvenc", "cuda"), ("h264_qsv", "qsv")] {
         if test_encoder(encoder) {
             return GpuCapability {
                 video_encoder: Some(encoder.to_string()),
@@ -62,7 +59,17 @@ fn detect_gpu_windows() -> GpuCapability {
 /// Test if an encoder is available
 fn test_encoder(encoder: &str) -> bool {
     let mut child = match Command::new(ffmpeg_path())
-        .args(["-f", "lavfi", "-i", "color=c=black:s=64x64:d=0.1", "-c:v", encoder, "-f", "null", "-"])
+        .args([
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=64x64:d=0.1",
+            "-c:v",
+            encoder,
+            "-f",
+            "null",
+            "-",
+        ])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()

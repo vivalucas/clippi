@@ -29,6 +29,7 @@ A 评审（发现） → B 验证 + 修复确认项 + 评审（发现）
 | 6 | cc-mimo | 2026-05-15 | 1 | 不成立 |
 | 7 | AI 开发助手 | 2026-06-04 | 5 已确认 + 2 待确认 | 本轮自检后已修复确认项，待 CI / 真机验证 |
 | 8 | AI 开发助手 | 2026-06-04 | 7 已确认 + 3 待确认 | 已修复 6 项，`Cargo.lock` 待 Rust 环境生成，待 CI / 真机验证 |
+| 9 | AI 开发助手 | 2026-06-08 | 5 已确认 + 3 待确认 | 已修复确认项；Windows publish 布局和硬件编码仍待 CI / 真机验证 |
 
 ## 构建失败复盘 / 下次检查清单
 
@@ -800,3 +801,95 @@ E 轮 10 个问题全部确认已修复。
 - Windows `.resw` XML 解析：通过
 - `git diff --check`：通过
 - 本机 `cargo` / `dotnet` 不存在，Rust 和 Windows 完整编译仍需 GitHub Actions 验证
+
+---
+
+## J — 验证 + 第十轮评审
+
+**评审人**：AI 开发助手
+**日期**：2026-06-08
+**范围**：全量复核（project-log、Rust core、macOS SwiftUI / 资产、Windows WinUI 3、CI/CD、脚本）
+
+### 对 I 后续状态逐条复核
+
+| I 后续项 | 确认 | 说明 |
+|----------|------|------|
+| 问题 46：桌面应用缺少 `core/Cargo.lock` | 确认成立并修复 | 本机已有 Cargo；已执行 `cargo generate-lockfile` 并提交生成的 `core/Cargo.lock`。 |
+| Windows publish 产物运行时布局 | 仍待确认 | 本机缺 `dotnet`，无法本地 publish；需要 GitHub Actions / Windows 环境验证 zip 内 DLL 与 ffmpeg 布局。 |
+| 硬件编码在真机上的兼容性 | 仍待确认 | 代码层无法替代 NVIDIA / Intel QSV / VideoToolbox 真机样本验证。 |
+
+### J 的独立评审发现与处理
+
+#### 问题 47：`core/target/` 未被忽略导致本地构建污染工作区
+
+- **类型**：构建卫生 / 可维护性
+- **严重程度**：低
+- **状态**：已修复
+- **位置**：`.gitignore`
+- **描述**：仓库只忽略根目录 `/target/`，但实际 Rust 项目在 `core/` 下；运行 `cargo test` 或 `cargo build` 会生成未跟踪的 `core/target/`。
+- **自检结论**：成立。运行 Cargo 后 `git status` 显示 `?? core/target/`。
+- **修复**：`.gitignore` 增加 `/core/target/`。
+
+#### 问题 48：Rust 核心库缺少自动化单元测试
+
+- **类型**：测试缺口 / 回归风险
+- **严重程度**：中
+- **状态**：已修复
+- **位置**：`core/src/types.rs`, `core/src/task.rs`, `core/src/probe.rs`
+- **描述**：此前 `cargo test` 结果为 0 个测试，ffmpeg 参数构建、JSON FFI 契约、帧率解析等高风险逻辑没有自动保护。
+- **自检结论**：成立。首次运行 `cargo test` 显示 `running 0 tests`。
+- **修复**：新增 11 个 Rust 单元测试，覆盖 serde enum JSON、小写格式枚举、WebM 编码回退、去音轨不重编码、音频提取 codec、缩放参数、裁剪参数校验、speed / ETA 解析和 probe 帧率异常值。
+
+#### 问题 49：macOS AppIcon asset catalog 尺寸声明错误
+
+- **类型**：发布质量 / 资产配置
+- **严重程度**：低
+- **状态**：已修复
+- **位置**：`macos/Clippi/Assets.xcassets/AppIcon.appiconset/Contents.json`
+- **描述**：同一张 1024x1024 图标同时声明为 `512x512` 的 1x 和 2x 槽位，Xcode 编译警告 1x 槽位期望 512x512。
+- **自检结论**：成立。`xcodebuild` 输出 `icon_1024x1024.png is 1024x1024 but should be 512x512`。
+- **修复**：移除错误的 512@1x 槽位，保留 512@2x 对应 1024x1024 PNG。
+
+#### 问题 50：project-log 当前状态与本机能力不一致
+
+- **类型**：文档 / 交接风险
+- **严重程度**：低
+- **状态**：已修复
+- **位置**：`project-log/05-current-status.md`, `project-log/06-dev-log.md`
+- **描述**：状态文档仍记录本机缺 Cargo、`core/Cargo.lock` 需后续生成；本轮环境实际已有 Cargo，且已完成 Rust 测试和 macOS 完整 Debug 构建。
+- **自检结论**：成立。`cargo --version` 可用，且 `cargo test`、`cargo build --release` 均通过。
+- **修复**：更新当前状态、任务交接和开发日志，保留 Windows / .NET 验证仍待确认。
+
+### J 的待确认问题
+
+#### 待确认 1：Windows publish 产物运行时布局
+
+- **类型**：发布验证
+- **严重程度**：中
+- **状态**：待 CI / Windows 环境验证
+- **位置**：`.github/workflows/build-windows.yml`, `windows/Clippi/Clippi.csproj`, `core/src/binaries.rs`
+- **说明**：需确认 `Clippi-windows.zip` 内包含 `clippi_core.dll`、`ffmpeg/ffmpeg.exe`、`ffmpeg/ffprobe.exe`，并且 WinUI 应用运行时可正确加载。
+
+#### 待确认 2：硬件编码真实样本兼容性
+
+- **类型**：兼容性
+- **严重程度**：中
+- **状态**：待真机验证
+- **位置**：`core/src/gpu.rs`, `core/src/task.rs`
+- **说明**：需在 VideoToolbox、NVIDIA NVENC、Intel QSV 环境分别跑真实视频样本，确认探测结果、编码器选择和处理成功率。
+
+#### 待确认 3：真实视频端到端处理
+
+- **类型**：功能验证
+- **严重程度**：中
+- **状态**：待样本验证
+- **位置**：Rust core + macOS / Windows UI
+- **说明**：需覆盖导入、裁剪、转换、缩放、提取音频、去除音频、取消和失败详情复制。
+
+### J 的验证
+
+- `cargo fmt`：通过
+- `cargo test`：通过，11 passed
+- `cargo build --release`：通过
+- `xcodebuild -project macos/Clippi.xcodeproj -scheme Clippi -configuration Debug -sdk macosx CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES build`：通过
+- Windows 本地完整编译未运行，原因：本机缺少 `dotnet`

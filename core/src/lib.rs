@@ -3,18 +3,18 @@
 //! Provides video processing capabilities through ffmpeg/ffprobe.
 //! Used by macOS (SwiftUI) and Windows (WinUI 3) UI layers via FFI.
 
-mod probe;
-mod gpu;
-mod task;
-mod queue;
-mod error;
-mod types;
-mod ffi;
 mod binaries;
+mod error;
+mod ffi;
+mod gpu;
+mod probe;
+mod queue;
+mod task;
+mod types;
 
 pub use error::CoreError;
-pub use types::*;
-pub use probe::probe_file;
 pub use gpu::detect_gpu;
-pub use task::{run_task, cancel_task};
+pub use probe::probe_file;
 pub use queue::queue_tasks;
+pub use task::{cancel_task, run_task};
+pub use types::*;

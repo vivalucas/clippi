@@ -1,6 +1,6 @@
-use anyhow::Result;
-use crate::types::{TaskConfig, QueueHandle, ProgressFn};
 use crate::task::{execute_task_blocking, next_task_id, prepare_task};
+use crate::types::{ProgressFn, QueueHandle, TaskConfig};
+use anyhow::Result;
 
 /// Queue multiple tasks for serial execution
 pub fn queue_tasks(tasks: Vec<TaskConfig>, callback: ProgressFn) -> Result<QueueHandle> {

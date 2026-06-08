@@ -1,17 +1,17 @@
 //! C FFI interface for Swift/C# to call Rust core library
 
+use serde_json;
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
-use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
-use serde_json;
 
-use crate::types::*;
-use crate::probe::probe_file;
 use crate::gpu::detect_gpu;
-use crate::task;
+use crate::probe::probe_file;
 use crate::queue;
+use crate::task;
+use crate::types::*;
 
 struct TaskState {
     cancel_tx: Option<tokio::sync::oneshot::Sender<()>>,
@@ -46,7 +46,9 @@ pub extern "C" fn clippi_probe_file(path: *const c_char) -> *mut c_char {
         }
         Err(e) => {
             let error = serde_json::json!({"error": e.to_string()});
-            CString::new(error.to_string()).unwrap_or_default().into_raw()
+            CString::new(error.to_string())
+                .unwrap_or_default()
+                .into_raw()
         }
     }
 }
@@ -87,15 +89,21 @@ pub extern "C" fn clippi_run_task(
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
     if let Ok(mut registry) = TASK_REGISTRY.lock() {
-        registry.handles.insert(id, TaskState {
-            cancel_tx: Some(cancel_tx),
-        });
+        registry.handles.insert(
+            id,
+            TaskState {
+                cancel_tx: Some(cancel_tx),
+            },
+        );
     } else {
         return 0;
     }
 
     let callback_box: ProgressFn = Arc::new(move |progress| {
-        if matches!(progress.state.as_str(), "completed" | "failed" | "cancelled") {
+        if matches!(
+            progress.state.as_str(),
+            "completed" | "failed" | "cancelled"
+        ) {
             if let Some(task_id) = progress.task_id {
                 if let Ok(mut registry) = TASK_REGISTRY.lock() {
                     registry.handles.remove(&task_id);
@@ -107,21 +115,19 @@ pub extern "C" fn clippi_run_task(
         callback(c_str.as_ptr());
     });
 
-    match std::thread::Builder::new().spawn(move || {
-        match task::prepare_task(&config) {
-            Ok((args, duration)) => {
-                let _ = task::execute_task_blocking(id, args, duration, cancel_rx, callback_box);
-            }
-            Err(error) => {
-                callback_box(Progress {
-                    task_id: Some(id),
-                    percent: 0.0,
-                    speed: String::new(),
-                    eta_secs: None,
-                    state: "failed".to_string(),
-                    message: Some(error.to_string()),
-                });
-            }
+    match std::thread::Builder::new().spawn(move || match task::prepare_task(&config) {
+        Ok((args, duration)) => {
+            let _ = task::execute_task_blocking(id, args, duration, cancel_rx, callback_box);
+        }
+        Err(error) => {
+            callback_box(Progress {
+                task_id: Some(id),
+                percent: 0.0,
+                speed: String::new(),
+                eta_secs: None,
+                state: "failed".to_string(),
+                message: Some(error.to_string()),
+            });
         }
     }) {
         Ok(_) => id,

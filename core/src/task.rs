@@ -1,13 +1,15 @@
+use crate::binaries::ffmpeg_path;
+use crate::error::CoreError;
+use crate::probe::probe_file;
+use crate::types::{
+    AudioFormat, Operation, OutputFormat, Progress, ProgressFn, TaskConfig, TaskHandle,
+};
+use anyhow::Result;
 use std::io::{BufRead, BufReader, Read};
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc;
 use std::time::Duration;
-use anyhow::Result;
-use crate::probe::probe_file;
-use crate::types::{TaskConfig, Operation, AudioFormat, OutputFormat, TaskHandle, Progress, ProgressFn};
-use crate::error::CoreError;
-use crate::binaries::ffmpeg_path;
 
 /// RAII wrapper that kills the child process on drop if still running.
 struct KillOnDrop(Option<Child>);
@@ -85,7 +87,10 @@ pub(crate) fn execute_task_blocking(
             report_failure(&callback, task_id, error.to_string());
             error
         })?;
-    let stderr = child.inner_mut().stderr.take()
+    let stderr = child
+        .inner_mut()
+        .stderr
+        .take()
         .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg stderr".to_string()))
         .map_err(|error| {
             report_failure(&callback, task_id, error.to_string());
@@ -237,7 +242,7 @@ fn spawn_ffmpeg(args: &[String]) -> Result<Child> {
 }
 
 /// Cancel a running task
-pub fn cancel_task(task_id: u64, cancel_tx: tokio::sync::oneshot::Sender<()>) {
+pub fn cancel_task(_task_id: u64, cancel_tx: tokio::sync::oneshot::Sender<()>) {
     let _ = cancel_tx.send(());
 }
 
@@ -258,14 +263,23 @@ fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
         args.extend(["-hwaccel".to_string(), hw_accel.clone()]);
     }
 
-    if let Operation::Trim { start, fast_mode: true, .. } = &config.operation {
+    if let Operation::Trim {
+        start,
+        fast_mode: true,
+        ..
+    } = &config.operation
+    {
         args.extend(["-ss".to_string(), start.to_string()]);
     }
 
     args.extend(["-i".to_string(), config.input_path.clone()]);
 
     match &config.operation {
-        Operation::Trim { start, end, fast_mode } => {
+        Operation::Trim {
+            start,
+            end,
+            fast_mode,
+        } => {
             if !fast_mode {
                 args.extend(["-ss".to_string(), start.to_string()]);
             }
@@ -283,7 +297,15 @@ fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
             }
         }
         Operation::Convert { format } => {
-            if matches!(format, OutputFormat::Webm) && config.video_codec.as_deref().is_some_and(|c| c.contains("264") || c.contains("265") || c.contains("videotoolbox") || c.contains("nvenc") || c.contains("qsv")) {
+            if matches!(format, OutputFormat::Webm)
+                && config.video_codec.as_deref().is_some_and(|c| {
+                    c.contains("264")
+                        || c.contains("265")
+                        || c.contains("videotoolbox")
+                        || c.contains("nvenc")
+                        || c.contains("qsv")
+                })
+            {
                 args.extend(["-c:v".to_string(), "libvpx-vp9".to_string()]);
             } else if let Some(ref vc) = config.video_codec {
                 args.extend(["-c:v".to_string(), vc.clone()]);
@@ -333,7 +355,10 @@ fn validate_config(config: &TaskConfig) -> Result<()> {
             return Err(CoreError::InvalidParams("trim times must be finite".to_string()).into());
         }
         if *start < 0.0 || *end <= *start {
-            return Err(CoreError::InvalidParams("trim end time must be greater than start time".to_string()).into());
+            return Err(CoreError::InvalidParams(
+                "trim end time must be greater than start time".to_string(),
+            )
+            .into());
         }
     }
 
@@ -362,4 +387,106 @@ fn trim_duration_secs(config: &TaskConfig) -> Option<f64> {
     }
 
     Some((source_duration - *start).max(0.0).min(requested))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config(operation: Operation) -> TaskConfig {
+        TaskConfig {
+            input_path: "/tmp/input.mp4".to_string(),
+            output_path: "/tmp/output.mp4".to_string(),
+            operation,
+            video_codec: Some("h264_videotoolbox".to_string()),
+            audio_codec: Some("aac".to_string()),
+            hw_accel: Some("videotoolbox".to_string()),
+        }
+    }
+
+    fn arg_pair(args: &[String], key: &str) -> Option<String> {
+        args.windows(2)
+            .find(|pair| pair[0] == key)
+            .map(|pair| pair[1].clone())
+    }
+
+    #[test]
+    fn convert_webm_falls_back_to_webm_compatible_codecs() {
+        let args = build_ffmpeg_args(&config(Operation::Convert {
+            format: OutputFormat::Webm,
+        }))
+        .unwrap();
+
+        assert_eq!(arg_pair(&args, "-c:v").as_deref(), Some("libvpx-vp9"));
+        assert_eq!(arg_pair(&args, "-c:a").as_deref(), Some("libopus"));
+        assert_eq!(arg_pair(&args, "-progress").as_deref(), Some("pipe:1"));
+        assert_eq!(arg_pair(&args, "-threads").as_deref(), Some("0"));
+        assert_eq!(args.first().map(String::as_str), Some("-n"));
+    }
+
+    #[test]
+    fn remove_audio_copies_video_stream_without_reencoding() {
+        let args = build_ffmpeg_args(&config(Operation::RemoveAudio)).unwrap();
+
+        assert!(args.iter().any(|arg| arg == "-an"));
+        assert_eq!(arg_pair(&args, "-c:v").as_deref(), Some("copy"));
+    }
+
+    #[test]
+    fn extract_audio_selects_requested_audio_codec() {
+        let args = build_ffmpeg_args(&config(Operation::ExtractAudio {
+            format: AudioFormat::Wav,
+        }))
+        .unwrap();
+
+        assert!(args.iter().any(|arg| arg == "-vn"));
+        assert_eq!(arg_pair(&args, "-acodec").as_deref(), Some("pcm_s16le"));
+    }
+
+    #[test]
+    fn scale_sets_filter_and_video_codec() {
+        let args = build_ffmpeg_args(&config(Operation::Scale {
+            width: 1280,
+            height: 720,
+        }))
+        .unwrap();
+
+        assert_eq!(arg_pair(&args, "-vf").as_deref(), Some("scale=1280:720"));
+        assert_eq!(
+            arg_pair(&args, "-c:v").as_deref(),
+            Some("h264_videotoolbox")
+        );
+    }
+
+    #[test]
+    fn validate_config_rejects_invalid_trim_ranges() {
+        let negative_start = config(Operation::Trim {
+            start: -1.0,
+            end: 2.0,
+            fast_mode: true,
+        });
+        assert!(validate_config(&negative_start).is_err());
+
+        let reversed = config(Operation::Trim {
+            start: 5.0,
+            end: 2.0,
+            fast_mode: true,
+        });
+        assert!(validate_config(&reversed).is_err());
+
+        let nan = config(Operation::Trim {
+            start: f64::NAN,
+            end: 2.0,
+            fast_mode: true,
+        });
+        assert!(validate_config(&nan).is_err());
+    }
+
+    #[test]
+    fn parses_speed_and_estimates_eta() {
+        assert_eq!(parse_speed_factor("2.5x"), Some(2.5));
+        assert_eq!(parse_speed_factor("0x"), None);
+        assert_eq!(parse_speed_factor("not-a-speed"), None);
+        assert_eq!(estimate_eta_secs(100.0, 25.0, "2x"), Some(38));
+    }
 }

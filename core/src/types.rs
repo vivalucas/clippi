@@ -35,7 +35,11 @@ pub struct TaskConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Operation {
     /// Trim video with start/end time (seconds)
-    Trim { start: f64, end: f64, fast_mode: bool },
+    Trim {
+        start: f64,
+        end: f64,
+        fast_mode: bool,
+    },
     /// Convert to target format
     Convert { format: OutputFormat },
     /// Scale resolution
@@ -90,4 +94,49 @@ pub struct TaskHandle {
 #[derive(Debug)]
 pub struct QueueHandle {
     pub task_ids: Vec<u64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn deserializes_external_tagged_operations_from_ui_json() {
+        let trim: Operation = serde_json::from_value(json!({
+            "Trim": { "start": 1.5, "end": 3.0, "fast_mode": true }
+        }))
+        .unwrap();
+        assert!(matches!(
+            trim,
+            Operation::Trim {
+                start: 1.5,
+                end: 3.0,
+                fast_mode: true
+            }
+        ));
+
+        let extract: Operation = serde_json::from_value(json!({
+            "ExtractAudio": { "format": "wav" }
+        }))
+        .unwrap();
+        assert!(matches!(
+            extract,
+            Operation::ExtractAudio {
+                format: AudioFormat::Wav
+            }
+        ));
+
+        let remove: Operation = serde_json::from_value(json!("RemoveAudio")).unwrap();
+        assert!(matches!(remove, Operation::RemoveAudio));
+    }
+
+    #[test]
+    fn output_and_audio_formats_use_lowercase_json() {
+        assert!(matches!(
+            serde_json::from_str::<OutputFormat>("\"webm\"").unwrap(),
+            OutputFormat::Webm
+        ));
+        assert_eq!(serde_json::to_string(&AudioFormat::Aac).unwrap(), "\"aac\"");
+    }
 }

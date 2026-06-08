@@ -2,6 +2,67 @@
 
 ---
 
+## 2026-06-08（v1.0.10 发布准备）
+
+**触发原因**：用户要求将本轮质量修复全部提交 GitHub，如有版本号则推进版本号并发布新的 Release。
+
+**修改内容**：
+1. `core/Cargo.toml`、`core/Cargo.lock` — Rust 核心库版本推进到 `1.0.10` 并刷新 lockfile。
+2. `macos/Clippi.xcodeproj/project.pbxproj` — macOS `MARKETING_VERSION` 推进到 `1.0.10`。
+3. `windows/Clippi/Clippi.csproj`、`windows/Clippi/app.manifest` — Windows 应用版本推进到 `1.0.10` / `1.0.10.0`。
+4. `project-log/05-current-status.md`、`project-log/06-dev-log.md` — 记录 v1.0.10 发布准备状态。
+
+**遇到的问题**：
+- 本机仍无 `dotnet`，无法本地验证 Windows publish。
+
+**解决方式**：
+- 本地验证 Rust 与 macOS；Windows 构建和 Release 资产交由 GitHub Actions tag 构建验证。
+
+**验证方式**：
+- `cargo test`
+- `cargo build --release`
+- `xcodebuild -project macos/Clippi.xcodeproj -scheme Clippi -configuration Debug -sdk macosx CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES build`
+- `git diff --check`
+
+**验证结果**：
+- Rust 单元测试通过：11 passed。
+- Rust release 构建通过。
+- macOS Debug 构建通过。
+- `git diff --check` 通过。
+- Windows 本地验证未运行，原因：本机缺少 `dotnet`；将由 GitHub Actions tag 构建验证。
+
+## 2026-06-08（全量评审后质量修复）
+
+**触发原因**：用户确认本轮评审提出的全部修改项，要求按建议完成优化。
+
+**修改内容**：
+1. `core/Cargo.lock` — 由本机 Rust 工具链生成并提交，固定 Release 构建依赖解析结果。
+2. `.gitignore` — 增加 `/core/target/`，避免在 `core/` 子目录运行 Cargo 后产生大量未跟踪构建产物。
+3. `core/src/types.rs` — 增加 JSON FFI 契约单元测试，覆盖 UI 传入的 serde 外部标签 enum 和小写格式枚举。
+4. `core/src/task.rs` — 增加 ffmpeg 参数构建、WebM 编码回退、去音轨不重编码、音频提取 codec、缩放参数、裁剪校验、speed / ETA 解析测试；同时将 `cancel_task` 未使用参数改为 `_task_id` 消除 warning。
+5. `core/src/probe.rs` — 增加帧率解析测试，覆盖合法分数、主帧率无效时回退 avg 帧率、非法帧率返回 0。
+6. `macos/Clippi/Assets.xcassets/AppIcon.appiconset/Contents.json` — 移除把 1024 图标声明为 512@1x 的错误槽位，修复 Xcode asset catalog 尺寸警告。
+7. `project-log/05-current-status.md`、`project-log/11-code-review-log.md`、`project-log/06-dev-log.md` — 同步本轮评审、修复、验证和后续待确认项。
+
+**遇到的问题**：
+- 本机仍无 `dotnet`，无法本地验证 Windows WinUI publish 和 zip 运行时布局。
+
+**解决方式**：
+- 完成本机可验证的 Rust 和 macOS 构建验证；Windows 仍保留为 CI / Windows 环境待确认项。
+
+**验证方式**：
+- `cargo fmt`
+- `cargo test`
+- `cargo build --release`
+- `xcodebuild -project macos/Clippi.xcodeproj -scheme Clippi -configuration Debug -sdk macosx CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES build`
+- `git diff --check`
+
+**验证结果**：
+- Rust 单元测试通过：11 passed。
+- Rust release 构建通过。
+- macOS Debug 构建通过。
+- Windows 本地验证未运行，原因：本机缺少 `dotnet`。
+
 ## 2026-06-04（v1.0.8 全量评审修复、图标更新与体验打磨）
 
 **触发原因**：用户要求先阅读 project-log 规范并全量评审项目，确认后一次性修复全部确认问题，推进版本并触发新版本构建。

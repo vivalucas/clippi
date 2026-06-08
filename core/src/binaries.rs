@@ -45,13 +45,23 @@ fn bundled_candidates(executable: &str) -> Vec<PathBuf> {
             candidates.push(exe_dir.join(executable));
 
             if let Some(contents_dir) = exe_dir.parent() {
-                candidates.push(contents_dir.join("Resources").join("ffmpeg").join(executable));
+                candidates.push(
+                    contents_dir
+                        .join("Resources")
+                        .join("ffmpeg")
+                        .join(executable),
+                );
             }
         }
     }
 
     if let Ok(current_dir) = env::current_dir() {
-        candidates.push(current_dir.join("ffmpeg").join(platform_dir()).join(executable));
+        candidates.push(
+            current_dir
+                .join("ffmpeg")
+                .join(platform_dir())
+                .join(executable),
+        );
         candidates.push(current_dir.join("ffmpeg").join(executable));
     }
 
