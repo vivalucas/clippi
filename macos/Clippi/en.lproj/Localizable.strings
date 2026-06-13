@@ -44,3 +44,4 @@
 "error.trimEndAfterStart" = "Trim end time must be greater than start time.";
 "error.trimStartBeforeDuration" = "Trim start time cannot exceed the video duration.";
 "error.noAudioTrack" = "This video has no audio track to extract.";
+"error.noVideoTrack" = "This media has no video track to process.";

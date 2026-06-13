@@ -44,3 +44,4 @@
 "error.trimEndAfterStart" = "トリミング終了時間は開始時間より後にしてください。";
 "error.trimStartBeforeDuration" = "トリミング開始時間は動画の長さを超えられません。";
 "error.noAudioTrack" = "この動画には抽出できる音声トラックがありません。";
+"error.noVideoTrack" = "このメディアには処理できる映像トラックがありません。";

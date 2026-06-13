@@ -13,16 +13,16 @@ use crate::queue;
 use crate::task;
 use crate::types::*;
 
-struct TaskState {
-    cancel_tx: Option<tokio::sync::oneshot::Sender<()>>,
+pub(crate) struct TaskState {
+    pub(crate) cancel_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 #[derive(Default)]
-struct TaskRegistry {
-    handles: HashMap<u64, TaskState>,
+pub(crate) struct TaskRegistry {
+    pub(crate) handles: HashMap<u64, TaskState>,
 }
 
-static TASK_REGISTRY: LazyLock<Mutex<TaskRegistry>> =
+pub(crate) static TASK_REGISTRY: LazyLock<Mutex<TaskRegistry>> =
     LazyLock::new(|| Mutex::new(TaskRegistry::default()));
 
 /// Probe file metadata - returns JSON string
@@ -178,6 +178,16 @@ pub extern "C" fn clippi_queue_tasks(
     };
 
     let callback_box: ProgressFn = Arc::new(move |progress| {
+        if matches!(
+            progress.state.as_str(),
+            "completed" | "failed" | "cancelled"
+        ) {
+            if let Some(task_id) = progress.task_id {
+                if let Ok(mut registry) = TASK_REGISTRY.lock() {
+                    registry.handles.remove(&task_id);
+                }
+            }
+        }
         let json = serde_json::to_string(&progress).unwrap_or_default();
         let c_str = CString::new(json).unwrap_or_default();
         callback(c_str.as_ptr());

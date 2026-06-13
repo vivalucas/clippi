@@ -1,9 +1,9 @@
 # 当前状态
 
-> **最后更新**：2026-06-08
+> **最后更新**：2026-06-13
 > **最后更新人**：AI 开发助手
-> **最近开发日志**：2026-06-08 v1.0.10 发布准备
-> **当前可信度**：本轮代码已更新；本地 Rust 单测通过；macOS Debug 构建通过；Windows 完整编译仍待 GitHub Actions / .NET 环境验证
+> **最近开发日志**：2026-06-13 第七轮代码审查修复
+> **当前可信度**：本轮代码已更新；本地 Rust 单测通过；FFI 字典分发重构完成；待真实视频和纯音频样本全覆盖验证。
 
 ## 当前版本
 
@@ -21,6 +21,8 @@
 
 **V1.0.10** — 质量修复发布：生成并提交 `core/Cargo.lock`，补 Rust 核心单元测试，忽略 `core/target/`，修复 macOS AppIcon 资产尺寸警告，并推进 macOS / Windows / Rust 版本号。
 
+**V1.0.11** (准备中) — 第七轮审查修复：重构 Swift/C# FFI 回调字典隔离并发任务，重构 `queue_tasks` 支持中途取消，取消纯视频文件限制支持音频，消除冗余 `ffprobe`，修复 Scale 音频丢失和 ETA 极值抖动，改进默认 copy 音频策略。
+
 ## 当前阶段
 
 <!-- 旧状态（废弃于 2026-06-08，原因：已补齐 Cargo.lock、Rust 单测并完成 macOS Debug 构建验证） -->
@@ -29,7 +31,7 @@
 <!-- 旧状态（废弃于 2026-06-08，原因：已推进版本号并准备发布 v1.0.10） -->
 ~~核心功能代码完成 v1.0.9 复核修复，并补齐本轮确认的构建可复现性和 Rust 核心测试；等待 Windows GitHub Actions 与真实视频样本验证。~~
 
-核心功能代码完成 v1.0.10 质量修复并准备发布；等待 GitHub Actions 构建、Release 资产和真实视频样本验证。
+核心功能代码完成 v1.0.11 的并发回调重构与体验优化，大幅度解耦了任务分发与格式限制；等待真实媒体文件样本验证。
 
 ## 已完成
 
@@ -56,11 +58,12 @@
 - v1.0.8 本轮修复：输出扩展名按操作选择、导入异步结果防串台、裁剪结束时间超界自动夹取、ffmpeg 原始错误详情分层复制、处理期间锁定参数控件、macOS 图标重绘
 - v1.0.9 复核修复：ffprobe / GPU 探测超时、音频提取无音轨前置提示、Windows 启动校验 UI 状态恢复、Windows 输出目录选择自动避让、英文/日文 README 结构同步
 - v1.0.10 质量修复：生成 `core/Cargo.lock`；新增 Rust 单元测试覆盖 JSON FFI 契约、ffmpeg 参数构建、帧率解析和 ETA / speed 解析；`.gitignore` 忽略 `core/target/`；修复 macOS AppIcon 资产元数据警告；版本号推进到 `1.0.10`
+- v1.0.11 审查修复：重构 C# / Swift 两端的全局回调为字典映射机制以避免并发冲突；开放 `TASK_REGISTRY` 修复批量队列不可取消问题；支持读取并兼容纯音频文件导入；精简 `prepare_task` 内冗余执行的进程外探测；修复缩放时忽视音频编解码器的问题；优化默认 `audio_codec` 为直通策略。
 
 ## 进行中
 
-- 等待 v1.0.10 GitHub Actions 构建与 Release 资产验证
-- 等待真实视频样本端到端验证
+- 等待 v1.0.11 的 GitHub Actions 构建与发布验证
+- 等待真实视频及音频样本端到端验证
 
 ## 待处理
 
@@ -93,21 +96,22 @@
 
 ## 下一步
 
-1. 用真实视频样本做 macOS / Windows 端到端处理验证
+1. 用真实视频/音频样本做 macOS / Windows 端到端处理验证
 2. 在 Windows / GitHub Actions 环境验证 publish zip 内 `clippi_core.dll`、`ffmpeg.exe`、`ffprobe.exe` 布局和运行时查找
-3. 继续打磨前端视觉层级和交互状态
-4. 后续如需 universal macOS 包，补 Rust 双架构构建与 `lipo` 合并
+3. 验证队列 API `queue_tasks` 在未来开放 UI 时的行为
+4. 继续打磨前端视觉层级和交互状态
+5. 后续如需 universal macOS 包，补 Rust 双架构构建与 `lipo` 合并
 
 ## 任务交接
 
-**当前任务**：v1.0.10 发布准备已完成，等待 GitHub Actions / Release 验证与真实样本验证
+**当前任务**：v1.0.11 修复并发与体验断层已完成，等待真实音视频样本全覆盖验证
 
-**已完成**：阅读 project-log 与全量代码；完成全量评审；修复输出扩展名继承、异步导入竞态、裁剪超界进度估算、错误详情分层和处理期间参数锁定；更换 macOS AppIcon；复核并修复探测超时、无音轨提取提示、Windows 启动校验状态和输出目录避让；版本推进到 v1.0.9；补齐 `core/Cargo.lock`、Rust 核心单测、`core/target/` 忽略规则和 AppIcon 资产元数据修复；版本推进到 v1.0.10 并准备发布
+**已完成**：...（历史省略）；完成第七轮全量代码审查，修复多任务并发覆盖 FFI 回调漏洞；修复 `queue_tasks` 的取消注册失效；支持纯音频文件探测与处理；移除重复调用 `ffprobe` 的冗余耗时；补充 Scale 的音频编码参数；增加对抖动极低 ETA 的过滤；默认采用音频 `-c:a copy` 直通提升速度；完成各文档日志刷新。
 
-**未完成**：真实视频样本端到端验证；本地 Windows/.NET 验证仍因本机无 `dotnet` 未运行；v1.0.10 Actions / Release 结果待确认
+**未完成**：本地 Windows 验证仍受限（无 .NET）；排队 `queue_tasks` 的实测联调暂无 UI 触发路径；`run_with_timeout` 可能存在的微小线程滞留未做根治（影响极小）。
 
-**下一步建议**：推送后检查 macOS / Windows Actions 结果与 Release assets；补真实视频样本验证；在 Windows 环境验证终态回调和 zip 运行时布局
+**下一步建议**：通过提供各类音视频样本（尤其带多种音轨的视频和纯音频文件）实际运行界面验证；如一切顺畅则打 Tag 触发 CI 并进入 v1.0.11 发布。
 
-**风险 / 阻塞**：本机缺 .NET；队列串行语义仍需更完整的执行模型测试；macOS 目前 CI 只构建 active architecture；Windows publish 产物布局仍需 CI / Windows 环境确认
+**风险 / 阻塞**：队列并发任务的日志错乱和性能竞争问题由于当前 UI 仅开放单任务执行暂时延后体现；`run_with_timeout` 遗留了较少可能的悬挂线程（低频）。
 
-**相关文件**：`core/Cargo.lock`, `core/src/probe.rs`, `core/src/task.rs`, `core/src/types.rs`, `.gitignore`, `macos/Clippi/Assets.xcassets/AppIcon.appiconset/Contents.json`, `windows/Clippi/ViewModels/MainViewModel.cs`, `windows/Clippi/MainWindow.xaml.cs`
+**相关文件**：`core/src/ffi.rs`, `core/src/queue.rs`, `core/src/probe.rs`, `core/src/task.rs`, `macos/Clippi/FFI/ClippiFFI.swift`, `windows/Clippi/ClippiCore.cs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`

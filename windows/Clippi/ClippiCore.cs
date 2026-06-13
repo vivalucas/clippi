@@ -7,7 +7,8 @@ namespace Clippi
     public static class ClippiCore
     {
         private const string DllName = "clippi_core";
-        private static Action<string>? _managedProgressCallback;
+        private static readonly object _callbackLock = new object();
+        private static readonly System.Collections.Generic.Dictionary<ulong, Action<string>> _callbacks = new();
         private static readonly ProgressCallback _nativeProgressCallback = OnProgress;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -75,13 +76,15 @@ namespace Clippi
         public static ulong RunTask(string configJson, Action<string> callback)
         {
             IntPtr configPtr = Marshal.StringToCoTaskMemUTF8(configJson);
-            _managedProgressCallback = callback;
             try
             {
-                ulong taskId = clippi_run_task(configPtr, _nativeProgressCallback);
-                if (taskId == 0)
-                    _managedProgressCallback = null;
-                return taskId;
+                lock (_callbackLock)
+                {
+                    ulong taskId = clippi_run_task(configPtr, _nativeProgressCallback);
+                    if (taskId > 0)
+                        _callbacks[taskId] = callback;
+                    return taskId;
+                }
             }
             finally
             {
@@ -96,7 +99,12 @@ namespace Clippi
         {
             bool cancelled = clippi_cancel_task(taskId) == 1;
             if (cancelled)
-                _managedProgressCallback = null;
+            {
+                lock (_callbackLock)
+                {
+                    _callbacks.Remove(taskId);
+                }
+            }
             return cancelled;
         }
 
@@ -111,7 +119,6 @@ namespace Clippi
 
         public static void ClearProgressCallback()
         {
-            _managedProgressCallback = null;
         }
 
         private static void OnProgress(IntPtr progressJson)
@@ -120,7 +127,34 @@ namespace Clippi
                 return;
 
             string json = Marshal.PtrToStringUTF8(progressJson) ?? "";
-            _managedProgressCallback?.Invoke(json);
+            ulong? taskId = null;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("task_id", out var taskIdElement) && taskIdElement.ValueKind == JsonValueKind.Number)
+                {
+                    taskId = taskIdElement.GetUInt64();
+                }
+            }
+            catch { }
+
+            Action<string>? callback = null;
+            if (taskId.HasValue)
+            {
+                lock (_callbackLock)
+                {
+                    if (_callbacks.TryGetValue(taskId.Value, out var cb))
+                    {
+                        callback = cb;
+                        if (json.Contains("\"state\":\"completed\"") || json.Contains("\"state\":\"failed\"") || json.Contains("\"state\":\"cancelled\""))
+                        {
+                            _callbacks.Remove(taskId.Value);
+                        }
+                    }
+                }
+            }
+
+            callback?.Invoke(json);
         }
     }
 }

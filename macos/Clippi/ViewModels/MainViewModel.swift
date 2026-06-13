@@ -128,7 +128,7 @@ class MainViewModel: ObservableObject {
     }
 
     func probeFile(at url: URL) {
-        guard Self.isSupportedVideo(url) else {
+        guard Self.isSupportedMedia(url) else {
             showError(L10n.string("error.unsupportedVideo"))
             return
         }
@@ -221,7 +221,7 @@ class MainViewModel: ObservableObject {
             "output_path": outputPath,
             "operation": operation,
             "video_codec": gpuInfo?.encoder ?? "libx264",
-            "audio_codec": "aac"
+            "audio_codec": selectedOperation == .convert ? "aac" : "copy"
         ]
 
         return config
@@ -243,12 +243,10 @@ class MainViewModel: ObservableObject {
                 isProcessing = false
                 currentTaskId = 0
                 statusMessage = L10n.string("status.completed")
-                ClippiFFI.clearProgressCallback()
                 return
             case "failed", "cancelled":
                 isProcessing = false
                 currentTaskId = 0
-                ClippiFFI.clearProgressCallback()
                 showError(
                     L10n.string(state == "cancelled" ? "status.cancelled" : "error.taskFailed"),
                     details: dict["message"] as? String ?? ""
@@ -366,6 +364,11 @@ class MainViewModel: ObservableObject {
             return false
         }
 
+        if (selectedOperation == .scale || selectedOperation == .removeAudio), fileInfo?.width == 0 {
+            showError(L10n.string("error.noVideoTrack"))
+            return false
+        }
+
         outputPath = trimmedOutput
         return true
     }
@@ -407,9 +410,9 @@ class MainViewModel: ObservableObject {
         }
     }
 
-    private static func isSupportedVideo(_ url: URL) -> Bool {
+    private static func isSupportedMedia(_ url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
-        return ["mp4", "mkv", "mov", "webm", "avi", "m4v"].contains(ext)
+        return ["mp4", "mkv", "mov", "webm", "avi", "m4v", "mp3", "wav", "aac", "m4a", "flac"].contains(ext)
     }
 
     private func showError(_ message: String, details: String = "") {

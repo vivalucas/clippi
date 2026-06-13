@@ -81,6 +81,12 @@ namespace Clippi
                 picker.FileTypeFilter.Add(".mov");
                 picker.FileTypeFilter.Add(".webm");
                 picker.FileTypeFilter.Add(".avi");
+                picker.FileTypeFilter.Add(".m4v");
+                picker.FileTypeFilter.Add(".mp3");
+                picker.FileTypeFilter.Add(".wav");
+                picker.FileTypeFilter.Add(".aac");
+                picker.FileTypeFilter.Add(".m4a");
+                picker.FileTypeFilter.Add(".flac");
 
                 // WinUI 3 requires HWND
                 var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);

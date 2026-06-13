@@ -59,6 +59,7 @@
   <data name="ErrorTrimEndAfterStart" xml:space="preserve"><value>トリミング終了時間は開始時間より後にしてください。</value></data>
   <data name="ErrorTrimStartBeforeDuration" xml:space="preserve"><value>トリミング開始時間は動画の長さを超えられません。</value></data>
   <data name="ErrorNoAudioTrack" xml:space="preserve"><value>この動画には抽出できる音声トラックがありません。</value></data>
+  <data name="ErrorNoVideoTrack" xml:space="preserve"><value>このメディアには処理できる映像トラックがありません。</value></data>
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>進捗の解析に失敗しました: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>ここにドロップ</value></data>
   <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>詳細をコピー</value></data>

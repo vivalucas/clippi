@@ -2,6 +2,33 @@
 
 ---
 
+## 2026-06-13（第七轮审查修复）
+
+**触发原因**：第七轮全量代码审查发现了 FFI 回调竞争、队列失效、Scale 音频丢失和一系列性能与可用性问题，需要进行系统性重构与修复。
+
+**修改内容**：
+1. `core/src/ffi.rs`, `core/src/queue.rs` — 开放 `TASK_REGISTRY` 权限，重构 `queue_tasks` 以正确追踪并挂载取消通道。
+2. `core/src/probe.rs` — 移除纯视频流强制校验，支持音频文件解析。
+3. `core/src/task.rs` — `prepare_task` 剔除冗余 `ffprobe` 探测；修复 `Scale` 丢弃 `audio_codec` 的漏洞；过滤 ETA 计算的极值抖动。
+4. `macos/Clippi/FFI/ClippiFFI.swift`, `windows/Clippi/ClippiCore.cs` — 将静态全局进度回调升级为基于 `task_id` 的字典映射，解决多任务竞争覆盖漏洞。
+5. `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs` — 更新 `IsSupportedMedia` 放行纯音频格式；将默认 `audio_codec` 策略修改为 `copy`。
+
+**遇到的问题**：
+- `ffprobe` 隐式死锁风险：`run_with_timeout` 发生超时强杀时，如果管道未能关闭可能会造成读取线程挂起。由于这涉及极其罕见的孙进程泄露场景且标准库解决较为繁琐，决定予以记录但目前通过 `child.kill()` 依赖内核关闭机制进行缓解。
+
+**解决方式**：
+- 按计划完成了所有代码更新。通过 C# / Swift 两端的互斥锁操作保障了 FFI 字典安全。
+
+**验证方式**：
+- `cargo test` 在 `core` 下运行测试。
+- 逻辑代码静态比对。
+
+**验证结果**：
+- Rust 单元测试通过（11 passed）。
+- C# 和 Swift 层静态语法验证与逻辑审查通过。
+
+---
+
 ## 2026-06-08（v1.0.10 发布准备）
 
 **触发原因**：用户要求将本轮质量修复全部提交 GitHub，如有版本号则推进版本号并发布新的 Release。

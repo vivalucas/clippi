@@ -59,6 +59,7 @@
   <data name="ErrorTrimEndAfterStart" xml:space="preserve"><value>裁剪结束时间必须大于开始时间</value></data>
   <data name="ErrorTrimStartBeforeDuration" xml:space="preserve"><value>裁剪开始时间不能超过视频时长</value></data>
   <data name="ErrorNoAudioTrack" xml:space="preserve"><value>这个视频没有可提取的音轨</value></data>
+  <data name="ErrorNoVideoTrack" xml:space="preserve"><value>该文件没有可处理的视频画面</value></data>
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>进度解析失败: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>拖放到这里</value></data>
   <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>复制详情</value></data>

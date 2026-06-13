@@ -2,14 +2,22 @@ import Foundation
 
 /// Swift wrapper for Rust FFI functions
 enum ClippiFFI {
-    private static var progressCallback: ((String) -> Void)?
+    private static var callbacks: [UInt64: (String) -> Void] = [:]
     private static let callbackLock = NSLock()
     private static let progressThunk: @convention(c) (UnsafePointer<CChar>?) -> Void = { cString in
         guard let cString = cString else { return }
         let jsonString = String(cString: cString)
+        
+        guard let dict = parseJson(jsonString),
+              let taskId = dict["task_id"] as? UInt64 else { return }
+        
         callbackLock.lock()
-        let cb = progressCallback
+        let cb = callbacks[taskId]
+        if let state = dict["state"] as? String, ["completed", "failed", "cancelled"].contains(state) {
+            callbacks.removeValue(forKey: taskId)
+        }
         callbackLock.unlock()
+        
         cb?(jsonString)
     }
 
@@ -42,14 +50,11 @@ enum ClippiFFI {
         guard let configJson = toJson(config) else { return 0 }
 
         callbackLock.lock()
-        progressCallback = callback
-        callbackLock.unlock()
         let taskId = clippi_run_task(configJson, progressThunk)
-        if taskId == 0 {
-            callbackLock.lock()
-            progressCallback = nil
-            callbackLock.unlock()
+        if taskId > 0 {
+            callbacks[taskId] = callback
         }
+        callbackLock.unlock()
         return taskId
     }
 
@@ -58,16 +63,10 @@ enum ClippiFFI {
         let cancelled = clippi_cancel_task(id) == 1
         if cancelled {
             callbackLock.lock()
-            progressCallback = nil
+            callbacks.removeValue(forKey: id)
             callbackLock.unlock()
         }
         return cancelled
-    }
-
-    static func clearProgressCallback() {
-        callbackLock.lock()
-        progressCallback = nil
-        callbackLock.unlock()
     }
 
     // MARK: - Helpers

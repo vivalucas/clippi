@@ -32,24 +32,31 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
     let json: serde_json::Value =
         serde_json::from_slice(&output.stdout).context("Failed to parse ffprobe output")?;
 
-    // Extract video stream info
+    // Extract video and audio stream info
     let video_stream = json["streams"]
         .as_array()
-        .and_then(|streams| streams.iter().find(|s| s["codec_type"] == "video"))
-        .ok_or_else(|| CoreError::ProbeFailed("No video stream found".to_string()))?;
-    let has_audio = json["streams"]
+        .and_then(|streams| streams.iter().find(|s| s["codec_type"] == "video"));
+        
+    let audio_stream = json["streams"]
         .as_array()
-        .is_some_and(|streams| streams.iter().any(|s| s["codec_type"] == "audio"));
+        .and_then(|streams| streams.iter().find(|s| s["codec_type"] == "audio"));
 
-    let width = video_stream["width"].as_u64().unwrap_or(0) as u32;
-    let height = video_stream["height"].as_u64().unwrap_or(0) as u32;
-    let codec = video_stream["codec_name"]
-        .as_str()
+    if video_stream.is_none() && audio_stream.is_none() {
+        return Err(CoreError::ProbeFailed("No video or audio stream found".to_string()).into());
+    }
+
+    let has_audio = audio_stream.is_some();
+
+    let width = video_stream.and_then(|s| s["width"].as_u64()).unwrap_or(0) as u32;
+    let height = video_stream.and_then(|s| s["height"].as_u64()).unwrap_or(0) as u32;
+    let codec = video_stream
+        .or(audio_stream)
+        .and_then(|s| s["codec_name"].as_str())
         .unwrap_or("unknown")
         .to_string();
 
     // Parse frame rate (e.g., "30/1" -> 30.0)
-    let frame_rate = parse_frame_rate(video_stream);
+    let frame_rate = video_stream.map(|s| parse_frame_rate(s)).unwrap_or(0.0);
 
     let format = &json["format"];
     let duration_secs = format["duration"]

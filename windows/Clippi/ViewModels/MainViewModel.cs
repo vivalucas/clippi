@@ -269,7 +269,7 @@ namespace Clippi.ViewModels
 
         public async Task ProbeFileAsync(string path)
         {
-            if (!IsSupportedVideo(path))
+            if (!IsSupportedMedia(path))
             {
                 DispatchToUi(() =>
                 {
@@ -365,7 +365,7 @@ namespace Clippi.ViewModels
                 output_path = OutputPath,
                 operation = GetOperation(),
                 video_codec = GpuEncoder != L10n.Get("EncoderSoftware") ? GpuEncoder : "libx264",
-                audio_codec = "aac"
+                audio_codec = SelectedOperation == "convert" ? "aac" : "copy"
             };
 
             return JsonSerializer.Serialize(config);
@@ -423,10 +423,10 @@ namespace Clippi.ViewModels
             return UniqueOutputPath(Path.Combine(directory, $"{fileName}_output.{GetOutputExtension()}"));
         }
 
-        private static bool IsSupportedVideo(string path)
+        private static bool IsSupportedMedia(string path)
         {
             var ext = Path.GetExtension(path).ToLowerInvariant();
-            return ext is ".mp4" or ".mkv" or ".mov" or ".webm" or ".avi" or ".m4v";
+            return ext is ".mp4" or ".mkv" or ".mov" or ".webm" or ".avi" or ".m4v" or ".mp3" or ".wav" or ".aac" or ".m4a" or ".flac";
         }
 
         public string GetOutputExtension()
@@ -511,6 +511,12 @@ namespace Clippi.ViewModels
                 return false;
             }
 
+            if ((SelectedOperation == "scale" || SelectedOperation == "removeAudio") && Width == 0)
+            {
+                StatusMessage = L10n.Get("ErrorNoVideoTrack");
+                return false;
+            }
+
             OutputPath = Path.GetFullPath(OutputPath);
             return true;
         }
@@ -559,7 +565,6 @@ namespace Clippi.ViewModels
                         _currentTaskId = 0;
                         ErrorDetails = message ?? "";
                         StatusMessage = stateText == "cancelled" ? L10n.Get("StatusCancelled") : L10n.Get("ErrorTaskFailed");
-                        ClippiCore.ClearProgressCallback();
                         return;
                     }
 
@@ -568,7 +573,6 @@ namespace Clippi.ViewModels
                         IsProcessing = false;
                         _currentTaskId = 0;
                         StatusMessage = L10n.Get("StatusCompleted");
-                        ClippiCore.ClearProgressCallback();
                         return;
                     }
                 }

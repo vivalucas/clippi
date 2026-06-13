@@ -893,3 +893,61 @@ E 轮 10 个问题全部确认已修复。
 - `cargo build --release`：通过
 - `xcodebuild -project macos/Clippi.xcodeproj -scheme Clippi -configuration Debug -sdk macosx CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES build`：通过
 - Windows 本地完整编译未运行，原因：本机缺少 `dotnet`
+
+---
+
+## 第七轮代码评审（2026-06-13）
+
+**评审人**：AI 开发助手 (Antigravity)
+**评审目标**：全量代码审计，重点关注功能、稳定性、性能及可用性问题。
+**基线版本**：v1.0.10 准备阶段
+
+### 发现与修复的项
+
+#### 1. FFI 回调竞争与清理漏洞 (已修复)
+- **类型**：稳定性 / 并发漏洞
+- **严重程度**：高
+- **位置**：`macos/Clippi/FFI/ClippiFFI.swift`, `windows/Clippi/ClippiCore.cs`
+- **说明**：原 FFI 回调为静态全局变量，多任务并发或排队时会导致回调被覆盖或误清理。现已改为基于 Task ID 的字典映射分发，安全隔离了不同任务的回调。
+
+#### 2. 队列任务无法取消及脱离管理 (已修复)
+- **类型**：功能缺陷
+- **严重程度**：高
+- **位置**：`core/src/queue.rs`, `core/src/ffi.rs`
+- **说明**：`queue.rs` 丢弃了取消通道 `cancel_tx` 且未注册入 `TASK_REGISTRY`，导致队列无法取消。已重构 `queue.rs` 接入全局任务注册表并实现了队列拦截。
+
+#### 3. Scale 操作丢失音频参数 (已修复)
+- **类型**：功能表现
+- **严重程度**：中
+- **位置**：`core/src/task.rs`
+- **说明**：原 `Operation::Scale` 生成 ffmpeg 参数时未追加 `-c:a`。现已补充 `audio_codec` 的合并。
+
+#### 4. 多次执行 ffprobe 的冗余耗时 (已修复)
+- **类型**：性能优化
+- **严重程度**：低
+- **位置**：`core/src/task.rs`
+- **说明**：原 `prepare_task` 中多次调用 `probe_file`，造成启动延迟。现修改为探测一次后传参复用。
+
+#### 5. 纯音频文件支持与可用性拓展 (已修复)
+- **类型**：体验优化
+- **严重程度**：中
+- **位置**：`core/src/probe.rs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **说明**：原逻辑强制要求存在视频流，导致纯音频文件被拦截。已更新探测和 UI 文件验证逻辑，放宽至 `.mp3`, `.wav`, `.aac`, `.m4a`, `.flac`。
+
+#### 6. ETA 抖动过滤 (已修复)
+- **类型**：体验优化
+- **严重程度**：低
+- **位置**：`core/src/task.rs`
+- **说明**：当 `speed_factor < 0.1` 时暂停 ETA 计算，避免显示极大的残影数字。
+
+#### 7. 改进音频拷贝策略 (已修复)
+- **类型**：流程优化
+- **严重程度**：中
+- **位置**：`macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+- **说明**：在执行无需转码音频的操作（如 Trim、Scale）时，将 UI 层默认生成的 `audio_codec` 调整为 `copy`，最大化减少不必要的重编码。
+
+#### 8. 文件选择器白名单与特定纯音频非法操作拦截 (自查补充修复)
+- **类型**：可用性 / 体验缺陷
+- **严重程度**：高
+- **位置**：`macos/Clippi/Views/MainView.swift`, `windows/Clippi/MainWindow.xaml.cs` 等
+- **说明**：修复了在底层放开纯音频支持后，由于系统文件选择器（NSOpenPanel / FileOpenPicker）拓展名白名单遗漏，导致用户无法通过按钮点选纯音频文件的严重断层。同时，在前后端拦截了对纯音频文件执行 `Scale` 和 `RemoveAudio` 操作时的底层 ffmpeg 致命报错，改为抛出友好的 `error.noVideoTrack` 多语言提示。

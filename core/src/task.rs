@@ -43,8 +43,9 @@ static TASK_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 pub fn run_task(config: TaskConfig, callback: ProgressFn) -> Result<TaskHandle> {
     let id = next_task_id();
     validate_config(&config)?;
-    let duration = task_duration_secs(&config);
-    let args = build_ffmpeg_args(&config)?;
+    let source_duration = probe_file(&config.input_path).map(|info| info.duration_secs).unwrap_or(0.0);
+    let duration = task_duration_secs(&config, source_duration);
+    let args = build_ffmpeg_args(&config, source_duration)?;
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
     std::thread::spawn(move || {
@@ -60,7 +61,8 @@ pub(crate) fn next_task_id() -> u64 {
 
 pub(crate) fn prepare_task(config: &TaskConfig) -> Result<(Vec<String>, f64)> {
     validate_config(config)?;
-    Ok((build_ffmpeg_args(config)?, task_duration_secs(config)))
+    let source_duration = probe_file(&config.input_path).map(|info| info.duration_secs).unwrap_or(0.0);
+    Ok((build_ffmpeg_args(config, source_duration)?, task_duration_secs(config, source_duration)))
 }
 
 pub(crate) fn execute_task_blocking(
@@ -216,6 +218,9 @@ fn report_failure(callback: &ProgressFn, task_id: u64, message: String) {
 
 fn estimate_eta_secs(duration: f64, percent: f64, speed: &str) -> Option<u64> {
     let speed_factor = parse_speed_factor(speed)?;
+    if speed_factor < 0.1 {
+        return None;
+    }
     if !(duration.is_finite() && duration > 0.0) || !(percent.is_finite() && percent >= 0.0) {
         return None;
     }
@@ -247,7 +252,7 @@ pub fn cancel_task(_task_id: u64, cancel_tx: tokio::sync::oneshot::Sender<()>) {
 }
 
 /// Build ffmpeg arguments from task config
-fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
+fn build_ffmpeg_args(config: &TaskConfig, source_duration: f64) -> Result<Vec<String>> {
     let mut args = vec![
         "-n".to_string(),
         "-hide_banner".to_string(),
@@ -283,7 +288,7 @@ fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
             if !fast_mode {
                 args.extend(["-ss".to_string(), start.to_string()]);
             }
-            let trim_duration = trim_duration_secs(config).unwrap_or((*end - *start).max(0.0));
+            let trim_duration = trim_duration_secs(config, source_duration).unwrap_or((*end - *start).max(0.0));
             args.extend(["-t".to_string(), trim_duration.to_string()]);
             if *fast_mode {
                 args.extend(["-c".to_string(), "copy".to_string()]);
@@ -320,6 +325,9 @@ fn build_ffmpeg_args(config: &TaskConfig) -> Result<Vec<String>> {
             args.extend(["-vf".to_string(), format!("scale={}:{}", width, height)]);
             if let Some(ref vc) = config.video_codec {
                 args.extend(["-c:v".to_string(), vc.clone()]);
+            }
+            if let Some(ref ac) = config.audio_codec {
+                args.extend(["-c:a".to_string(), ac.clone()]);
             }
         }
         Operation::ExtractAudio { format } => {
@@ -365,23 +373,20 @@ fn validate_config(config: &TaskConfig) -> Result<()> {
     Ok(())
 }
 
-fn task_duration_secs(config: &TaskConfig) -> f64 {
+fn task_duration_secs(config: &TaskConfig, source_duration: f64) -> f64 {
     if let Operation::Trim { start, end, .. } = &config.operation {
-        return trim_duration_secs(config).unwrap_or((*end - *start).max(0.0));
+        return trim_duration_secs(config, source_duration).unwrap_or((*end - *start).max(0.0));
     }
 
-    probe_file(&config.input_path)
-        .map(|info| info.duration_secs)
-        .unwrap_or(0.0)
+    source_duration
 }
 
-fn trim_duration_secs(config: &TaskConfig) -> Option<f64> {
+fn trim_duration_secs(config: &TaskConfig, source_duration: f64) -> Option<f64> {
     let Operation::Trim { start, end, .. } = &config.operation else {
         return None;
     };
 
     let requested = (*end - *start).max(0.0);
-    let source_duration = probe_file(&config.input_path).ok()?.duration_secs;
     if !(source_duration.is_finite() && source_duration > 0.0) {
         return Some(requested);
     }
@@ -414,7 +419,7 @@ mod tests {
     fn convert_webm_falls_back_to_webm_compatible_codecs() {
         let args = build_ffmpeg_args(&config(Operation::Convert {
             format: OutputFormat::Webm,
-        }))
+        }), 10.0)
         .unwrap();
 
         assert_eq!(arg_pair(&args, "-c:v").as_deref(), Some("libvpx-vp9"));
@@ -426,7 +431,7 @@ mod tests {
 
     #[test]
     fn remove_audio_copies_video_stream_without_reencoding() {
-        let args = build_ffmpeg_args(&config(Operation::RemoveAudio)).unwrap();
+        let args = build_ffmpeg_args(&config(Operation::RemoveAudio), 10.0).unwrap();
 
         assert!(args.iter().any(|arg| arg == "-an"));
         assert_eq!(arg_pair(&args, "-c:v").as_deref(), Some("copy"));
@@ -436,7 +441,7 @@ mod tests {
     fn extract_audio_selects_requested_audio_codec() {
         let args = build_ffmpeg_args(&config(Operation::ExtractAudio {
             format: AudioFormat::Wav,
-        }))
+        }), 10.0)
         .unwrap();
 
         assert!(args.iter().any(|arg| arg == "-vn"));
@@ -448,7 +453,7 @@ mod tests {
         let args = build_ffmpeg_args(&config(Operation::Scale {
             width: 1280,
             height: 720,
-        }))
+        }), 10.0)
         .unwrap();
 
         assert_eq!(arg_pair(&args, "-vf").as_deref(), Some("scale=1280:720"));
