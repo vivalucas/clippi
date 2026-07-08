@@ -35,3 +35,7 @@ Release/
 
 # Claude Code
 .claude/
+
+# Additional AI tools
+.mimocode/
+.agents/
