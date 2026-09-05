@@ -1,6 +1,5 @@
 //! C FFI interface for Swift/C# to call Rust core library
 
-use serde_json;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -8,6 +7,7 @@ use std::ptr;
 use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::gpu::detect_gpu;
+use crate::preview::generate_preview_image;
 use crate::probe::probe_file;
 use crate::queue;
 use crate::task;
@@ -60,6 +60,26 @@ pub extern "C" fn clippi_detect_gpu() -> *mut c_char {
     let capability = detect_gpu();
     let json = serde_json::to_string(&capability).unwrap_or_default();
     CString::new(json).unwrap_or_default().into_raw()
+}
+
+/// Generate a fallback preview JPEG. Returns a JSON result string.
+#[no_mangle]
+pub extern "C" fn clippi_generate_preview_image(
+    input_path: *const c_char,
+    output_path: *const c_char,
+) -> *mut c_char {
+    if input_path.is_null() || output_path.is_null() {
+        return ptr::null_mut();
+    }
+    let input = unsafe { CStr::from_ptr(input_path) }.to_string_lossy();
+    let output = unsafe { CStr::from_ptr(output_path) }.to_string_lossy();
+    let result = match generate_preview_image(&input, &output) {
+        Ok(()) => serde_json::json!({"ok": true}),
+        Err(error) => serde_json::json!({"error": error.to_string()}),
+    };
+    CString::new(result.to_string())
+        .unwrap_or_default()
+        .into_raw()
 }
 
 /// Run a task - returns task ID or 0 on error

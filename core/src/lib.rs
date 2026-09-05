@@ -7,6 +7,7 @@ mod binaries;
 mod error;
 mod ffi;
 mod gpu;
+mod preview;
 mod probe;
 mod queue;
 mod task;
@@ -14,6 +15,7 @@ mod types;
 
 pub use error::CoreError;
 pub use gpu::detect_gpu;
+pub use preview::generate_preview_image;
 pub use probe::probe_file;
 pub use queue::queue_tasks;
 pub use task::{cancel_task, run_task};

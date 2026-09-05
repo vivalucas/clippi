@@ -3,16 +3,17 @@ import Foundation
 /// Swift wrapper for Rust FFI functions
 enum ClippiFFI {
     private static var callbacks: [UInt64: (String) -> Void] = [:]
+    private static var pendingQueueCallback: ((String) -> Void)?
     private static let callbackLock = NSLock()
     private static let progressThunk: @convention(c) (UnsafePointer<CChar>?) -> Void = { cString in
         guard let cString = cString else { return }
         let jsonString = String(cString: cString)
         
         guard let dict = parseJson(jsonString),
-              let taskId = dict["task_id"] as? UInt64 else { return }
+              let taskId = (dict["task_id"] as? NSNumber)?.uint64Value else { return }
         
         callbackLock.lock()
-        let cb = callbacks[taskId]
+        let cb = callbacks[taskId] ?? pendingQueueCallback
         if let state = dict["state"] as? String, ["completed", "failed", "cancelled"].contains(state) {
             callbacks.removeValue(forKey: taskId)
         }
@@ -67,6 +68,40 @@ enum ClippiFFI {
             callbackLock.unlock()
         }
         return cancelled
+    }
+
+    /// Generate a JPEG fallback for containers AVKit cannot play directly.
+    static func generatePreviewImage(inputPath: String, outputPath: String) -> Bool {
+        guard let input = inputPath.cString(using: .utf8),
+              let output = outputPath.cString(using: .utf8),
+              let resultPtr = clippi_generate_preview_image(input, output) else { return false }
+        defer { clippi_free_string(resultPtr) }
+        let result = String(cString: resultPtr)
+        return parseJson(result)?["ok"] as? Bool == true
+    }
+
+    /// Run multiple tasks serially in the shared Rust queue.
+    static func queueTasks(configs: [[String: Any]], callback: @escaping (String) -> Void) -> [UInt64] {
+        guard JSONSerialization.isValidJSONObject(configs),
+              let data = try? JSONSerialization.data(withJSONObject: configs),
+              let json = String(data: data, encoding: .utf8) else { return [] }
+
+        callbackLock.lock()
+        pendingQueueCallback = callback
+        guard let resultPtr = clippi_queue_tasks(json, progressThunk) else {
+            pendingQueueCallback = nil
+            callbackLock.unlock()
+            return []
+        }
+        defer { clippi_free_string(resultPtr) }
+
+        let result = String(cString: resultPtr)
+        let ids = (try? JSONSerialization.jsonObject(with: Data(result.utf8)) as? [NSNumber])?
+            .map { $0.uint64Value } ?? []
+        for id in ids { callbacks[id] = callback }
+        pendingQueueCallback = nil
+        callbackLock.unlock()
+        return ids
     }
 
     // MARK: - Helpers

@@ -6,18 +6,22 @@ Clippi is a cross-platform native desktop video processing tool. It uses ffmpeg 
 
 ## Features
 
-- Drag or choose a single media file
+- Drag or choose one or more media files, or import the current level of a folder
 - Read resolution, duration, codec, frame rate, and bitrate automatically
 - Video trimming: fast mode (stream copy) and precise mode (re-encode)
 - Format conversion: MP4 / MKV / MOV / WebM
 - Resolution scaling: 4K / 1080p / 720p / 480p
 - Audio tools: extract MP3 / AAC / WAV, or remove audio tracks
 - GPU encoder detection: macOS VideoToolbox, Windows NVENC / QSV
+- Material correction: preview and batch rotate 90°/180°, flip horizontally, or flip vertically
+- Import multiple files or one folder level, then adjust items individually or apply one correction to a selection
+- Normalize common video containers to high-quality MP4: H.264 for SDR and HEVC for detected 10-bit/HDR media
+- Generate a fallback preview frame with the bundled ffmpeg when the native player cannot decode a source
 - Progress, speed, completion, failure, and cancellation status callbacks
 - Output path conflict avoidance, overwrite checks, and write-permission checks before processing
 - Interface localization: 简体中文, English, 日本語
 
-> Batch queues and more complete advanced ffmpeg parameter controls are planned later. The current desktop UI focuses on single-file processing.
+> ffmpeg and ffprobe are bundled with releases; users do not need to install or configure them.
 
 ## Downloads
 
@@ -127,10 +131,10 @@ git push origin v1.0.0
 
 ## Current Limitations
 
-- The desktop UI currently exposes single-file processing only
+- Material correction supports batch processing; trim and the other tools remain primarily single-file workflows
 - Windows builds are distributed as zip archives, not installers
 - macOS builds are unsigned, so first launch may require allowing the app through system prompts
-- Output size estimation, disk-space warnings, advanced ffmpeg parameter editing, command previews, expandable logs, and batch task management are still planned
+- Output size estimation, disk-space warnings, advanced ffmpeg parameter editing, command previews, expandable logs, and advanced queue history/retry controls are still planned
 
 ## License
 

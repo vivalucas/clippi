@@ -20,6 +20,7 @@
 | 09 | `09-external-api-reference.md` | 外部服务参考：第三方 API 文档、模型列表 | 低 |
 | 10 | `10-planning-log.md` | 决策记录：重要决策及备选方案 | 中 |
 | 11 | `11-code-review-log.md` | 代码评审记录：多人/AI 多轮独立评审流程 | 中 |
+| 12 | `12-material-correction-design.md` | 批量旋转、镜像、预览、输出和跨平台交互规范 | 中 |
 
 > 编号 00-11 是标准文件。项目可根据需要自行添加 12+ 的文件。
 

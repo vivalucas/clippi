@@ -78,7 +78,7 @@ Clippi 是一款跨平台、原生图形界面的视频处理工具，以 ffmpeg
 |------|------|------|
 | macOS UI | Swift + SwiftUI | Apple 原生框架，macOS 26 Tahoe+ |
 | Windows UI | C# + WinUI 3 | Windows 11 原生风格，Fluent Design |
-| 核心库 | Rust | 跨平台共用逻辑，编译为 .dylib / .dll |
+| 核心库 | Rust | 跨平台共用逻辑，macOS 链接静态库 `.a`，Windows 加载 `.dll` |
 | 处理引擎 | ffmpeg（静态编译） | 随应用打包，不依赖用户环境 |
 | GPU 加速 | VideoToolbox (macOS) / NVENC + QSV (Windows) | 启动时自动探测 |
 | 构建 | GitHub Actions | tag 触发自动构建双平台 |

@@ -12,6 +12,9 @@ char* clippi_probe_file(const char* path);
 // Detect GPU capability - returns JSON string (must be freed with clippi_free_string)
 char* clippi_detect_gpu(void);
 
+// Generate a fallback preview JPEG - returns JSON string
+char* clippi_generate_preview_image(const char* input_path, const char* output_path);
+
 // Run a task - returns task ID or 0 on error
 // config_json: JSON string of TaskConfig
 // callback: function pointer for progress reporting (receives JSON string)

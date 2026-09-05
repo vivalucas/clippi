@@ -63,4 +63,46 @@
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>进度解析失败: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>拖放到这里</value></data>
   <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>复制详情</value></data>
+  <data name="CorrectionOutputDefault" xml:space="preserve"><value>各素材目录\Clippi-output</value></data>
+  <data name="CorrectionNothingToProcess" xml:space="preserve"><value>没有需要校正的已勾选素材</value></data>
+  <data name="CorrectionPendingSummary" xml:space="preserve"><value>将处理 {0} 个视频 · 不覆盖原文件</value></data>
+  <data name="CorrectionRotateLeft" xml:space="preserve"><value>左转 90°</value></data>
+  <data name="CorrectionRotateRight" xml:space="preserve"><value>右转 90°</value></data>
+  <data name="CorrectionRotate180" xml:space="preserve"><value>旋转 180°</value></data>
+  <data name="CorrectionFlipHorizontal" xml:space="preserve"><value>左右镜像</value></data>
+  <data name="CorrectionFlipVertical" xml:space="preserve"><value>上下镜像</value></data>
+  <data name="CorrectionNone" xml:space="preserve"><value>未调整</value></data>
+  <data name="CorrectionMetadata" xml:space="preserve"><value>方向元数据 {0}°</value></data>
+  <data name="CorrectionStatusQueued" xml:space="preserve"><value>等待中</value></data>
+  <data name="CorrectionStatusCompleted" xml:space="preserve"><value>已完成</value></data>
+  <data name="CorrectionStatusFailed" xml:space="preserve"><value>失败</value></data>
+  <data name="CorrectionStatusCancelled" xml:space="preserve"><value>已取消</value></data>
+  <data name="CorrectionTab.Header" xml:space="preserve"><value>素材方向校正</value></data>
+  <data name="CorrectionImportFailed" xml:space="preserve"><value>有 {0} 个文件无法读取</value></data>
+  <data name="CorrectionImportErrorTitle" xml:space="preserve"><value>部分文件导入失败</value></data>
+  <data name="DialogClose" xml:space="preserve"><value>确定</value></data>
+  <data name="CorrectionPreviewUnavailable" xml:space="preserve"><value>该格式无法直接播放预览，但仍可处理</value></data>
+  <data name="OtherToolsTab.Header" xml:space="preserve"><value>其他工具</value></data>
+  <data name="CorrectionAddFiles.Label" xml:space="preserve"><value>添加文件</value></data>
+  <data name="CorrectionAddFolder.Label" xml:space="preserve"><value>添加文件夹</value></data>
+  <data name="CorrectionClear.Label" xml:space="preserve"><value>清空</value></data>
+  <data name="CorrectionEmptyTitle.Text" xml:space="preserve"><value>拖入一个或多个视频</value></data>
+  <data name="CorrectionEmptySubtitle.Text" xml:space="preserve"><value>也可以添加文件，或导入文件夹当前层的视频</value></data>
+  <data name="CorrectionAddFilesButton.Content" xml:space="preserve"><value>添加文件</value></data>
+  <data name="CorrectionAddFolderButton.Content" xml:space="preserve"><value>添加文件夹</value></data>
+  <data name="CorrectionMaterials.Text" xml:space="preserve"><value>素材</value></data>
+  <data name="CorrectionRotateLeftButton.Content" xml:space="preserve"><value>左转 90°</value></data>
+  <data name="CorrectionRotateRightButton.Content" xml:space="preserve"><value>右转 90°</value></data>
+  <data name="CorrectionRotate180Button.Content" xml:space="preserve"><value>旋转 180°</value></data>
+  <data name="CorrectionFlipHorizontalButton.Content" xml:space="preserve"><value>左右镜像</value></data>
+  <data name="CorrectionFlipVerticalButton.Content" xml:space="preserve"><value>上下镜像</value></data>
+  <data name="CorrectionResetButton.Content" xml:space="preserve"><value>重置</value></data>
+  <data name="CorrectionScopeBoxLabel.Header" xml:space="preserve"><value>应用到</value></data>
+  <data name="CorrectionScopeChecked.Content" xml:space="preserve"><value>已勾选素材</value></data>
+  <data name="CorrectionScopeAll.Content" xml:space="preserve"><value>全部素材</value></data>
+  <data name="CorrectionApplyButton.Content" xml:space="preserve"><value>应用</value></data>
+  <data name="CorrectionOutputTo.Text" xml:space="preserve"><value>输出到</value></data>
+  <data name="CorrectionChangeButton.Content" xml:space="preserve"><value>更改</value></data>
+  <data name="CorrectionStartButton.Content" xml:space="preserve"><value>开始处理</value></data>
+  <data name="CorrectionStopButton.Content" xml:space="preserve"><value>停止全部</value></data>
 </root>

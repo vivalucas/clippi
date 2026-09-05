@@ -11,6 +11,15 @@ pub struct FileInfo {
     pub frame_rate: f64,
     pub bitrate: u64,
     pub has_audio: bool,
+    #[serde(default)]
+    pub pixel_format: String,
+    #[serde(default)]
+    pub color_transfer: String,
+    #[serde(default)]
+    pub is_hdr: bool,
+    /// Display rotation from stream metadata, normalized to a quarter turn.
+    #[serde(default)]
+    pub rotation_degrees: i32,
 }
 
 /// GPU hardware acceleration capability
@@ -34,6 +43,12 @@ pub struct TaskConfig {
 /// Supported operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Operation {
+    /// Bake the displayed orientation and requested correction into video pixels.
+    Transform {
+        rotation_degrees: i32,
+        flip_horizontal: bool,
+        flip_vertical: bool,
+    },
     /// Trim video with start/end time (seconds)
     Trim {
         start: f64,

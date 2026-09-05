@@ -21,7 +21,7 @@
 |------|-------|---------|
 | 1 | checkout 代码 | checkout 代码 |
 | 2 | 运行 `download_ffmpeg.sh` | 运行 `download_ffmpeg.ps1` |
-| 3 | 编译 Rust 核心库 (.dylib) | 编译 Rust 核心库 (.dll) |
+| 3 | 编译 Rust 核心静态库 (.a) | 编译 Rust 核心动态库 (.dll) |
 | 4 | xcodebuild 打包 | MSBuild 打包 |
 | 5 | 生成 .dmg | 生成 .zip |
 | 6 | 上传到 GitHub Release | 上传到 GitHub Release |

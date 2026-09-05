@@ -43,7 +43,9 @@ static TASK_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 pub fn run_task(config: TaskConfig, callback: ProgressFn) -> Result<TaskHandle> {
     let id = next_task_id();
     validate_config(&config)?;
-    let source_duration = probe_file(&config.input_path).map(|info| info.duration_secs).unwrap_or(0.0);
+    let source_duration = probe_file(&config.input_path)
+        .map(|info| info.duration_secs)
+        .unwrap_or(0.0);
     let duration = task_duration_secs(&config, source_duration);
     let args = build_ffmpeg_args(&config, source_duration)?;
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
@@ -61,8 +63,13 @@ pub(crate) fn next_task_id() -> u64 {
 
 pub(crate) fn prepare_task(config: &TaskConfig) -> Result<(Vec<String>, f64)> {
     validate_config(config)?;
-    let source_duration = probe_file(&config.input_path).map(|info| info.duration_secs).unwrap_or(0.0);
-    Ok((build_ffmpeg_args(config, source_duration)?, task_duration_secs(config, source_duration)))
+    let source_duration = probe_file(&config.input_path)
+        .map(|info| info.duration_secs)
+        .unwrap_or(0.0);
+    Ok((
+        build_ffmpeg_args(config, source_duration)?,
+        task_duration_secs(config, source_duration),
+    ))
 }
 
 pub(crate) fn execute_task_blocking(
@@ -85,18 +92,16 @@ pub(crate) fn execute_task_blocking(
         .stdout
         .take()
         .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg progress".to_string()))
-        .map_err(|error| {
+        .inspect_err(|error| {
             report_failure(&callback, task_id, error.to_string());
-            error
         })?;
     let stderr = child
         .inner_mut()
         .stderr
         .take()
         .ok_or_else(|| CoreError::FFmpegFailed("Failed to read ffmpeg stderr".to_string()))
-        .map_err(|error| {
+        .inspect_err(|error| {
             report_failure(&callback, task_id, error.to_string());
-            error
         })?;
     let stderr_handle = std::thread::spawn(move || {
         let mut stderr_text = String::new();
@@ -221,7 +226,7 @@ fn estimate_eta_secs(duration: f64, percent: f64, speed: &str) -> Option<u64> {
     if speed_factor < 0.1 {
         return None;
     }
-    if !(duration.is_finite() && duration > 0.0) || !(percent.is_finite() && percent >= 0.0) {
+    if !(duration.is_finite() && duration > 0.0 && percent.is_finite() && percent >= 0.0) {
         return None;
     }
 
@@ -280,6 +285,70 @@ fn build_ffmpeg_args(config: &TaskConfig, source_duration: f64) -> Result<Vec<St
     args.extend(["-i".to_string(), config.input_path.clone()]);
 
     match &config.operation {
+        Operation::Transform {
+            rotation_degrees,
+            flip_horizontal,
+            flip_vertical,
+        } => {
+            let filter =
+                build_transform_filter(*rotation_degrees, *flip_horizontal, *flip_vertical)?;
+            if !filter.is_empty() {
+                args.extend(["-vf".to_string(), filter]);
+            }
+            args.extend([
+                "-map".to_string(),
+                "0:v:0".to_string(),
+                "-map".to_string(),
+                "0:a?".to_string(),
+                "-map_metadata".to_string(),
+                "0".to_string(),
+            ]);
+            let webm_output = std::path::Path::new(&config.output_path)
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("webm"));
+            if webm_output
+                && config.video_codec.as_deref().is_some_and(|codec| {
+                    codec.contains("264")
+                        || codec.contains("265")
+                        || codec.contains("videotoolbox")
+                        || codec.contains("nvenc")
+                        || codec.contains("qsv")
+                })
+            {
+                args.extend(["-c:v".to_string(), "libvpx-vp9".to_string()]);
+            } else if let Some(ref vc) = config.video_codec {
+                args.extend(["-c:v".to_string(), vc.clone()]);
+            }
+            let selected_codec = arg_value(&args, "-c:v").map(str::to_owned);
+            append_quality_args(&mut args, selected_codec.as_deref());
+            if webm_output
+                && config.audio_codec.as_deref().is_some_and(|codec| {
+                    codec != "copy" && codec != "libopus" && codec != "libvorbis"
+                })
+            {
+                args.extend(["-c:a".to_string(), "libopus".to_string()]);
+            } else if let Some(ref ac) = config.audio_codec {
+                args.extend(["-c:a".to_string(), ac.clone()]);
+            }
+            if config.audio_codec.as_deref() == Some("aac") {
+                args.extend(["-b:a".to_string(), "192k".to_string()]);
+            }
+            args.extend(["-metadata:s:v:0".to_string(), "rotate=0".to_string()]);
+            if selected_codec
+                .as_deref()
+                .is_some_and(|codec| codec.contains("hevc") || codec.contains("265"))
+            {
+                args.extend(["-tag:v".to_string(), "hvc1".to_string()]);
+            }
+            if std::path::Path::new(&config.output_path)
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("mp4"))
+            {
+                args.extend(["-movflags".to_string(), "+faststart".to_string()]);
+            }
+        }
         Operation::Trim {
             start,
             end,
@@ -288,7 +357,8 @@ fn build_ffmpeg_args(config: &TaskConfig, source_duration: f64) -> Result<Vec<St
             if !fast_mode {
                 args.extend(["-ss".to_string(), start.to_string()]);
             }
-            let trim_duration = trim_duration_secs(config, source_duration).unwrap_or((*end - *start).max(0.0));
+            let trim_duration =
+                trim_duration_secs(config, source_duration).unwrap_or((*end - *start).max(0.0));
             args.extend(["-t".to_string(), trim_duration.to_string()]);
             if *fast_mode {
                 args.extend(["-c".to_string(), "copy".to_string()]);
@@ -349,7 +419,93 @@ fn build_ffmpeg_args(config: &TaskConfig, source_duration: f64) -> Result<Vec<St
     Ok(args)
 }
 
-fn validate_config(config: &TaskConfig) -> Result<()> {
+fn build_transform_filter(
+    rotation_degrees: i32,
+    flip_horizontal: bool,
+    flip_vertical: bool,
+) -> Result<String> {
+    let mut filters: Vec<&str> = match rotation_degrees.rem_euclid(360) {
+        0 => Vec::new(),
+        90 => vec!["transpose=clock"],
+        180 => vec!["hflip", "vflip"],
+        270 => vec!["transpose=cclock"],
+        _ => {
+            return Err(CoreError::InvalidParams(
+                "rotation must be a multiple of 90 degrees".to_string(),
+            )
+            .into())
+        }
+    };
+    if flip_horizontal {
+        filters.push("hflip");
+    }
+    if flip_vertical {
+        filters.push("vflip");
+    }
+    Ok(filters.join(","))
+}
+
+fn arg_value<'a>(args: &'a [String], key: &str) -> Option<&'a str> {
+    args.windows(2)
+        .find(|pair| pair[0] == key)
+        .map(|pair| pair[1].as_str())
+}
+
+fn append_quality_args(args: &mut Vec<String>, codec: Option<&str>) {
+    match codec.unwrap_or_default() {
+        "libx264" => args.extend([
+            "-crf".to_string(),
+            "18".to_string(),
+            "-preset".to_string(),
+            "medium".to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p".to_string(),
+        ]),
+        "libx265" => args.extend([
+            "-crf".to_string(),
+            "20".to_string(),
+            "-preset".to_string(),
+            "medium".to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p10le".to_string(),
+        ]),
+        "h264_nvenc" => args.extend([
+            "-cq".to_string(),
+            "19".to_string(),
+            "-b:v".to_string(),
+            "0".to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p".to_string(),
+        ]),
+        "h264_qsv" => args.extend([
+            "-global_quality".to_string(),
+            "19".to_string(),
+            "-pix_fmt".to_string(),
+            "nv12".to_string(),
+        ]),
+        "h264_videotoolbox" => args.extend([
+            "-q:v".to_string(),
+            "65".to_string(),
+            "-pix_fmt".to_string(),
+            "yuv420p".to_string(),
+        ]),
+        "hevc_videotoolbox" => args.extend([
+            "-q:v".to_string(),
+            "65".to_string(),
+            "-pix_fmt".to_string(),
+            "p010le".to_string(),
+        ]),
+        "libvpx-vp9" => args.extend([
+            "-crf".to_string(),
+            "30".to_string(),
+            "-b:v".to_string(),
+            "0".to_string(),
+        ]),
+        _ => {}
+    }
+}
+
+pub(crate) fn validate_config(config: &TaskConfig) -> Result<()> {
     if config.input_path.trim().is_empty() {
         return Err(CoreError::InvalidParams("input path is empty".to_string()).into());
     }
@@ -365,6 +521,18 @@ fn validate_config(config: &TaskConfig) -> Result<()> {
         if *start < 0.0 || *end <= *start {
             return Err(CoreError::InvalidParams(
                 "trim end time must be greater than start time".to_string(),
+            )
+            .into());
+        }
+    }
+
+    if let Operation::Transform {
+        rotation_degrees, ..
+    } = &config.operation
+    {
+        if rotation_degrees.rem_euclid(90) != 0 {
+            return Err(CoreError::InvalidParams(
+                "rotation must be a multiple of 90 degrees".to_string(),
             )
             .into());
         }
@@ -417,9 +585,12 @@ mod tests {
 
     #[test]
     fn convert_webm_falls_back_to_webm_compatible_codecs() {
-        let args = build_ffmpeg_args(&config(Operation::Convert {
-            format: OutputFormat::Webm,
-        }), 10.0)
+        let args = build_ffmpeg_args(
+            &config(Operation::Convert {
+                format: OutputFormat::Webm,
+            }),
+            10.0,
+        )
         .unwrap();
 
         assert_eq!(arg_pair(&args, "-c:v").as_deref(), Some("libvpx-vp9"));
@@ -439,9 +610,12 @@ mod tests {
 
     #[test]
     fn extract_audio_selects_requested_audio_codec() {
-        let args = build_ffmpeg_args(&config(Operation::ExtractAudio {
-            format: AudioFormat::Wav,
-        }), 10.0)
+        let args = build_ffmpeg_args(
+            &config(Operation::ExtractAudio {
+                format: AudioFormat::Wav,
+            }),
+            10.0,
+        )
         .unwrap();
 
         assert!(args.iter().any(|arg| arg == "-vn"));
@@ -450,10 +624,13 @@ mod tests {
 
     #[test]
     fn scale_sets_filter_and_video_codec() {
-        let args = build_ffmpeg_args(&config(Operation::Scale {
-            width: 1280,
-            height: 720,
-        }), 10.0)
+        let args = build_ffmpeg_args(
+            &config(Operation::Scale {
+                width: 1280,
+                height: 720,
+            }),
+            10.0,
+        )
         .unwrap();
 
         assert_eq!(arg_pair(&args, "-vf").as_deref(), Some("scale=1280:720"));
@@ -461,6 +638,56 @@ mod tests {
             arg_pair(&args, "-c:v").as_deref(),
             Some("h264_videotoolbox")
         );
+    }
+
+    #[test]
+    fn transform_composes_rotation_and_flips_and_clears_metadata() {
+        let args = build_ffmpeg_args(
+            &config(Operation::Transform {
+                rotation_degrees: 90,
+                flip_horizontal: true,
+                flip_vertical: false,
+            }),
+            10.0,
+        )
+        .unwrap();
+
+        assert_eq!(
+            arg_pair(&args, "-vf").as_deref(),
+            Some("transpose=clock,hflip")
+        );
+        assert_eq!(
+            arg_pair(&args, "-metadata:s:v:0").as_deref(),
+            Some("rotate=0")
+        );
+        assert_eq!(arg_pair(&args, "-c:a").as_deref(), Some("aac"));
+        assert_eq!(arg_pair(&args, "-b:a").as_deref(), Some("192k"));
+        assert_eq!(arg_pair(&args, "-q:v").as_deref(), Some("65"));
+        assert!(args.windows(2).any(|pair| pair == ["-map", "0:a?"]));
+    }
+
+    #[test]
+    fn transform_rejects_non_quarter_turn_rotation() {
+        assert!(build_transform_filter(45, false, false).is_err());
+        assert_eq!(
+            build_transform_filter(-90, false, true).unwrap(),
+            "transpose=cclock,vflip"
+        );
+    }
+
+    #[test]
+    fn transform_webm_uses_container_compatible_codecs() {
+        let mut task = config(Operation::Transform {
+            rotation_degrees: 180,
+            flip_horizontal: false,
+            flip_vertical: false,
+        });
+        task.output_path = "/tmp/output.webm".to_string();
+
+        let args = build_ffmpeg_args(&task, 10.0).unwrap();
+
+        assert_eq!(arg_pair(&args, "-c:v").as_deref(), Some("libvpx-vp9"));
+        assert_eq!(arg_pair(&args, "-c:a").as_deref(), Some("libopus"));
     }
 
     #[test]

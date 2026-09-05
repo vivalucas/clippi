@@ -9,6 +9,7 @@ namespace Clippi
         private const string DllName = "clippi_core";
         private static readonly object _callbackLock = new object();
         private static readonly System.Collections.Generic.Dictionary<ulong, Action<string>> _callbacks = new();
+        private static Action<string>? _pendingQueueCallback;
         private static readonly ProgressCallback _nativeProgressCallback = OnProgress;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -19,6 +20,9 @@ namespace Clippi
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr clippi_detect_gpu();
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr clippi_generate_preview_image(IntPtr input_path, IntPtr output_path);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern ulong clippi_run_task(IntPtr config_json, ProgressCallback callback);
@@ -108,6 +112,60 @@ namespace Clippi
             return cancelled;
         }
 
+        public static bool GeneratePreviewImage(string inputPath, string outputPath)
+        {
+            IntPtr inputPtr = Marshal.StringToCoTaskMemUTF8(inputPath);
+            IntPtr outputPtr = Marshal.StringToCoTaskMemUTF8(outputPath);
+            IntPtr result = IntPtr.Zero;
+            try
+            {
+                result = clippi_generate_preview_image(inputPtr, outputPtr);
+                if (result == IntPtr.Zero) return false;
+                using var json = JsonDocument.Parse(Marshal.PtrToStringUTF8(result) ?? "{}");
+                return json.RootElement.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True;
+            }
+            catch { return false; }
+            finally
+            {
+                Marshal.FreeCoTaskMem(inputPtr);
+                Marshal.FreeCoTaskMem(outputPtr);
+                if (result != IntPtr.Zero) clippi_free_string(result);
+            }
+        }
+
+        /// <summary>Run multiple tasks serially in the shared Rust queue.</summary>
+        public static ulong[] QueueTasks(string configsJson, Action<string> callback)
+        {
+            IntPtr configsPtr = Marshal.StringToCoTaskMemUTF8(configsJson);
+            IntPtr result = IntPtr.Zero;
+            try
+            {
+                lock (_callbackLock)
+                {
+                    _pendingQueueCallback = callback;
+                    result = clippi_queue_tasks(configsPtr, _nativeProgressCallback);
+                    if (result == IntPtr.Zero)
+                    {
+                        _pendingQueueCallback = null;
+                        return Array.Empty<ulong>();
+                    }
+
+                    var json = Marshal.PtrToStringUTF8(result) ?? "[]";
+                    var ids = JsonSerializer.Deserialize<ulong[]>(json) ?? Array.Empty<ulong>();
+                    foreach (var id in ids)
+                        _callbacks[id] = callback;
+                    _pendingQueueCallback = null;
+                    return ids;
+                }
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(configsPtr);
+                if (result != IntPtr.Zero)
+                    clippi_free_string(result);
+            }
+        }
+
         /// <summary>
         /// Free unmanaged string
         /// </summary>
@@ -151,6 +209,7 @@ namespace Clippi
                             _callbacks.Remove(taskId.Value);
                         }
                     }
+                    callback ??= _pendingQueueCallback;
                 }
             }
 

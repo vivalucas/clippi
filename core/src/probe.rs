@@ -36,7 +36,7 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
     let video_stream = json["streams"]
         .as_array()
         .and_then(|streams| streams.iter().find(|s| s["codec_type"] == "video"));
-        
+
     let audio_stream = json["streams"]
         .as_array()
         .and_then(|streams| streams.iter().find(|s| s["codec_type"] == "audio"));
@@ -46,6 +46,16 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
     }
 
     let has_audio = audio_stream.is_some();
+    let rotation_degrees = video_stream.map(parse_rotation).unwrap_or(0);
+    let pixel_format = video_stream
+        .and_then(|stream| stream["pix_fmt"].as_str())
+        .unwrap_or_default()
+        .to_string();
+    let color_transfer = video_stream
+        .and_then(|stream| stream["color_transfer"].as_str())
+        .unwrap_or_default()
+        .to_string();
+    let is_hdr = detects_hdr(&pixel_format, &color_transfer);
 
     let width = video_stream.and_then(|s| s["width"].as_u64()).unwrap_or(0) as u32;
     let height = video_stream.and_then(|s| s["height"].as_u64()).unwrap_or(0) as u32;
@@ -56,7 +66,7 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
         .to_string();
 
     // Parse frame rate (e.g., "30/1" -> 30.0)
-    let frame_rate = video_stream.map(|s| parse_frame_rate(s)).unwrap_or(0.0);
+    let frame_rate = video_stream.map(parse_frame_rate).unwrap_or(0.0);
 
     let format = &json["format"];
     let duration_secs = format["duration"]
@@ -77,7 +87,36 @@ pub fn probe_file(path: &str) -> Result<FileInfo> {
         frame_rate,
         bitrate,
         has_audio,
+        pixel_format,
+        color_transfer,
+        is_hdr,
+        rotation_degrees,
     })
+}
+
+fn parse_rotation(stream: &serde_json::Value) -> i32 {
+    let side_data_rotation = stream["side_data_list"]
+        .as_array()
+        .and_then(|items| items.iter().find_map(|item| item["rotation"].as_i64()));
+    let tag_rotation = stream["tags"]["rotate"]
+        .as_str()
+        .and_then(|value| value.parse::<i64>().ok());
+    normalize_rotation(side_data_rotation.or(tag_rotation).unwrap_or(0) as i32)
+}
+
+fn detects_hdr(pixel_format: &str, color_transfer: &str) -> bool {
+    matches!(color_transfer, "smpte2084" | "arib-std-b67")
+        || pixel_format.contains("10")
+        || pixel_format.contains("12")
+}
+
+fn normalize_rotation(value: i32) -> i32 {
+    match value.rem_euclid(360) {
+        45..=134 => 90,
+        135..=224 => 180,
+        225..=314 => 270,
+        _ => 0,
+    }
 }
 
 fn run_with_timeout(mut command: Command, timeout: Duration) -> Result<Output> {
@@ -189,5 +228,21 @@ mod tests {
         assert_eq!(parse_rational(Some(&json!("30/0"))), None);
         assert_eq!(parse_rational(Some(&json!("abc/1"))), None);
         assert_eq!(parse_frame_rate(&json!({ "r_frame_rate": "0/0" })), 0.0);
+    }
+
+    #[test]
+    fn parses_and_normalizes_rotation_metadata() {
+        let side_data = json!({"side_data_list": [{"rotation": -90}]});
+        let tag = json!({"tags": {"rotate": "180"}});
+        assert_eq!(parse_rotation(&side_data), 270);
+        assert_eq!(parse_rotation(&tag), 180);
+        assert_eq!(normalize_rotation(450), 90);
+    }
+
+    #[test]
+    fn detects_hdr_transfer_or_high_bit_depth() {
+        assert!(detects_hdr("yuv420p10le", "bt709"));
+        assert!(detects_hdr("yuv420p", "smpte2084"));
+        assert!(!detects_hdr("yuv420p", "bt709"));
     }
 }

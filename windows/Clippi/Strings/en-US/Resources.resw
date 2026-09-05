@@ -63,4 +63,46 @@
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>Failed to parse progress: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>Drop here</value></data>
   <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>Copy Details</value></data>
+  <data name="CorrectionOutputDefault" xml:space="preserve"><value>Each source folder\Clippi-output</value></data>
+  <data name="CorrectionNothingToProcess" xml:space="preserve"><value>No checked media needs correction</value></data>
+  <data name="CorrectionPendingSummary" xml:space="preserve"><value>{0} videos will be processed · originals are preserved</value></data>
+  <data name="CorrectionRotateLeft" xml:space="preserve"><value>Rotate left 90°</value></data>
+  <data name="CorrectionRotateRight" xml:space="preserve"><value>Rotate right 90°</value></data>
+  <data name="CorrectionRotate180" xml:space="preserve"><value>Rotate 180°</value></data>
+  <data name="CorrectionFlipHorizontal" xml:space="preserve"><value>Flip horizontal</value></data>
+  <data name="CorrectionFlipVertical" xml:space="preserve"><value>Flip vertical</value></data>
+  <data name="CorrectionNone" xml:space="preserve"><value>Unchanged</value></data>
+  <data name="CorrectionMetadata" xml:space="preserve"><value>Orientation metadata {0}°</value></data>
+  <data name="CorrectionStatusQueued" xml:space="preserve"><value>Queued</value></data>
+  <data name="CorrectionStatusCompleted" xml:space="preserve"><value>Completed</value></data>
+  <data name="CorrectionStatusFailed" xml:space="preserve"><value>Failed</value></data>
+  <data name="CorrectionStatusCancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="CorrectionTab.Header" xml:space="preserve"><value>Orientation</value></data>
+  <data name="CorrectionImportFailed" xml:space="preserve"><value>{0} files could not be read</value></data>
+  <data name="CorrectionImportErrorTitle" xml:space="preserve"><value>Some files could not be imported</value></data>
+  <data name="DialogClose" xml:space="preserve"><value>OK</value></data>
+  <data name="CorrectionPreviewUnavailable" xml:space="preserve"><value>This format cannot be previewed directly, but it can still be processed</value></data>
+  <data name="OtherToolsTab.Header" xml:space="preserve"><value>Other tools</value></data>
+  <data name="CorrectionAddFiles.Label" xml:space="preserve"><value>Add files</value></data>
+  <data name="CorrectionAddFolder.Label" xml:space="preserve"><value>Add folder</value></data>
+  <data name="CorrectionClear.Label" xml:space="preserve"><value>Clear</value></data>
+  <data name="CorrectionEmptyTitle.Text" xml:space="preserve"><value>Drop one or more videos</value></data>
+  <data name="CorrectionEmptySubtitle.Text" xml:space="preserve"><value>Choose files or import videos from the current folder level</value></data>
+  <data name="CorrectionAddFilesButton.Content" xml:space="preserve"><value>Add files</value></data>
+  <data name="CorrectionAddFolderButton.Content" xml:space="preserve"><value>Add folder</value></data>
+  <data name="CorrectionMaterials.Text" xml:space="preserve"><value>Media</value></data>
+  <data name="CorrectionRotateLeftButton.Content" xml:space="preserve"><value>Rotate left 90°</value></data>
+  <data name="CorrectionRotateRightButton.Content" xml:space="preserve"><value>Rotate right 90°</value></data>
+  <data name="CorrectionRotate180Button.Content" xml:space="preserve"><value>Rotate 180°</value></data>
+  <data name="CorrectionFlipHorizontalButton.Content" xml:space="preserve"><value>Flip horizontal</value></data>
+  <data name="CorrectionFlipVerticalButton.Content" xml:space="preserve"><value>Flip vertical</value></data>
+  <data name="CorrectionResetButton.Content" xml:space="preserve"><value>Reset</value></data>
+  <data name="CorrectionScopeBoxLabel.Header" xml:space="preserve"><value>Apply to</value></data>
+  <data name="CorrectionScopeChecked.Content" xml:space="preserve"><value>Checked items</value></data>
+  <data name="CorrectionScopeAll.Content" xml:space="preserve"><value>All items</value></data>
+  <data name="CorrectionApplyButton.Content" xml:space="preserve"><value>Apply</value></data>
+  <data name="CorrectionOutputTo.Text" xml:space="preserve"><value>Output to</value></data>
+  <data name="CorrectionChangeButton.Content" xml:space="preserve"><value>Change</value></data>
+  <data name="CorrectionStartButton.Content" xml:space="preserve"><value>Start processing</value></data>
+  <data name="CorrectionStopButton.Content" xml:space="preserve"><value>Stop all</value></data>
 </root>

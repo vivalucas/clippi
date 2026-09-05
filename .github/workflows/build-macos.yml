@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +53,9 @@ jobs:
                      -scheme Clippi \
                      -configuration Release \
                      -derivedDataPath build/ \
-                     ONLY_ACTIVE_ARCH=YES \
+                     ARCHS=arm64 \
+                     ONLY_ACTIVE_ARCH=NO \
+                     MACOSX_DEPLOYMENT_TARGET=13.0 \
                      CODE_SIGNING_ALLOWED=NO
 
       - name: Bundle ffmpeg
@@ -63,6 +65,8 @@ jobs:
           cp ffmpeg/macos-*/ffprobe build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/
           chmod +x build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/ffmpeg
           chmod +x build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/ffprobe
+          lipo -archs build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/ffmpeg | grep -qw arm64
+          lipo -archs build/Build/Products/Release/Clippi.app/Contents/Resources/ffmpeg/ffprobe | grep -qw arm64
 
       - name: Create DMG
         run: |

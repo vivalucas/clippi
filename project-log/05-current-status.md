@@ -1,9 +1,9 @@
 # 当前状态
 
-> **最后更新**：2026-06-13
+> **最后更新**：2026-09-05
 > **最后更新人**：AI 开发助手
-> **最近开发日志**：2026-06-13 第七轮代码审查修复
-> **当前可信度**：本轮代码已更新；本地 Rust 单测通过；FFI 字典分发重构完成；待真实视频和纯音频样本全覆盖验证。
+> **最近开发日志**：2026-09-05 v1.1.0 素材校正工作区
+> **当前可信度**：Rust 核心严格静态检查、测试和 Release 构建通过；Windows x64 Debug/Release 构建及隐藏启动冒烟通过；含 display matrix 的合成视频变换验证通过；待 macOS 26 arm64 CI 与真实素材双端验收。
 
 ## 当前版本
 
@@ -23,6 +23,8 @@
 
 **V1.0.11** (准备中) — 第七轮审查修复：重构 Swift/C# FFI 回调字典隔离并发任务，重构 `queue_tasks` 支持中途取消，取消纯视频文件限制支持音频，消除冗余 `ffprobe`，修复 Scale 音频丢失和 ETA 极值抖动，改进默认 copy 音频策略。
 
+**V1.1.0** (发布中) — 新增素材校正工作区：多文件/当前层文件夹导入、视频预览、逐条与批量旋转镜像、串行队列、安全输出，以及 macOS 26 arm64 明确构建目标。发布标签 `v1.1.0` 触发双平台构建。
+
 ## 当前阶段
 
 <!-- 旧状态（废弃于 2026-06-08，原因：已补齐 Cargo.lock、Rust 单测并完成 macOS Debug 构建验证） -->
@@ -31,7 +33,10 @@
 <!-- 旧状态（废弃于 2026-06-08，原因：已推进版本号并准备发布 v1.0.10） -->
 ~~核心功能代码完成 v1.0.9 复核修复，并补齐本轮确认的构建可复现性和 Rust 核心测试；等待 Windows GitHub Actions 与真实视频样本验证。~~
 
-核心功能代码完成 v1.0.11 的并发回调重构与体验优化，大幅度解耦了任务分发与格式限制；等待真实媒体文件样本验证。
+<!-- 旧状态（废弃于 2026-09-05，原因：已进入 v1.1.0 素材校正开发） -->
+~~核心功能代码完成 v1.0.11 的并发回调重构与体验优化，大幅度解耦了任务分发与格式限制；等待真实媒体文件样本验证。~~
+
+v1.1.0 素材校正核心、Windows/macOS 页面和发布配置已实现并进入标签发布；当前等待双平台 CI 产物与真实素材端到端验收。
 
 ## 已完成
 
@@ -59,11 +64,19 @@
 - v1.0.9 复核修复：ffprobe / GPU 探测超时、音频提取无音轨前置提示、Windows 启动校验 UI 状态恢复、Windows 输出目录选择自动避让、英文/日文 README 结构同步
 - v1.0.10 质量修复：生成 `core/Cargo.lock`；新增 Rust 单元测试覆盖 JSON FFI 契约、ffmpeg 参数构建、帧率解析和 ETA / speed 解析；`.gitignore` 忽略 `core/target/`；修复 macOS AppIcon 资产元数据警告；版本号推进到 `1.0.10`
 - v1.0.11 审查修复：重构 C# / Swift 两端的全局回调为字典映射机制以避免并发冲突；开放 `TASK_REGISTRY` 修复批量队列不可取消问题；支持读取并兼容纯音频文件导入；精简 `prepare_task` 内冗余执行的进程外探测；修复缩放时忽视音频编解码器的问题；优化默认 `audio_codec` 为直通策略。
+- v1.1.0 素材校正：双端统一工作区、AVKit/MediaPlayerElement 播放预览、五种方向操作、逐条/勾选/全部应用、队列进度和安全输出。
+- Rust 核心新增方向元数据探测与可组合 `Transform` 操作，输出清理旋转标签。
+- `Transform` 对 WebM 输出统一回退到容器兼容编码，避免双端各自维护格式特例。
+- macOS CI 固定 `macos-26` arm64，并校验随包 ffmpeg/ffprobe 包含 arm64。
+- 全面复核修复：队列任务 ID 即时返回且准备阶段可取消、完成项不重复执行、导入防并发、处理期间界面锁定、失败详情可查看、Windows 页签入口与最小尺寸统一。
+- 统一素材校正输出策略：MP4 容器；SDR 使用 H.264，HDR 使用 HEVC；映射全部音轨并转 AAC 192 kbps；原生播放器失败时使用内置 ffmpeg 首帧兜底。
+- 带 90° display matrix 的合成 MP4 已验证标准化方向并清除方向标签；补充组合变换样本验证为 320×240、两个 AAC 音轨均保留，兜底 JPEG 可生成；Rust 18 项测试、严格 Clippy、Release 构建及 Windows x64 Debug/Release 均通过。
+- Windows 应用已完成隐藏启动冒烟测试，进程稳定运行后由测试脚本正常结束。
 
 ## 进行中
 
-- 等待 v1.0.11 的 GitHub Actions 构建与发布验证
-- 等待真实视频及音频样本端到端验证
+- 等待 `v1.1.0` 标签触发的 Windows 与 macOS 26 arm64 GitHub Actions 构建验证
+- 等待真实手机素材在 Windows 与 macOS 上完成预览、组合变换和队列取消验收
 
 ## 待处理
 
@@ -96,22 +109,24 @@
 
 ## 下一步
 
-1. 用真实视频/音频样本做 macOS / Windows 端到端处理验证
-2. 在 Windows / GitHub Actions 环境验证 publish zip 内 `clippi_core.dll`、`ffmpeg.exe`、`ffprobe.exe` 布局和运行时查找
-3. 验证队列 API `queue_tasks` 在未来开放 UI 时的行为
-4. 继续打磨前端视觉层级和交互状态
-5. 后续如需 universal macOS 包，补 Rust 双架构构建与 `lipo` 合并
+1. 在 GitHub Actions 运行 macOS 26 arm64 构建，修正可能出现的 Swift/Xcode 编译问题。
+2. 用真实手机 MOV/MP4 和不同音轨素材做双端端到端验收（合成 display matrix 样本已通过核心链路）。
+3. 用交互式人工测试验证双端队列停止全部、单项失败继续、统一输出目录同名避让和预览视觉一致性。
+4. 验证 Windows/macOS 安装产物均内置 ffmpeg/ffprobe，干净机器无需外部环境。
 
 ## 任务交接
 
-**当前任务**：v1.0.11 修复并发与体验断层已完成，等待真实音视频样本全覆盖验证
+<!-- 旧交接（废弃于 2026-09-05，原因：任务已推进到 v1.1.0） -->
+~~**当前任务**：v1.0.11 修复并发与体验断层已完成，等待真实音视频样本全覆盖验证~~
+
+**当前任务**：v1.1.0 素材校正工作区及全面复核修复已完成本地实现和 Windows 验证，等待 macOS CI 与真实素材验收。
 
 **已完成**：...（历史省略）；完成第七轮全量代码审查，修复多任务并发覆盖 FFI 回调漏洞；修复 `queue_tasks` 的取消注册失效；支持纯音频文件探测与处理；移除重复调用 `ffprobe` 的冗余耗时；补充 Scale 的音频编码参数；增加对抖动极低 ETA 的过滤；默认采用音频 `-c:a copy` 直通提升速度；完成各文档日志刷新。
 
-**未完成**：本地 Windows 验证仍受限（无 .NET）；排队 `queue_tasks` 的实测联调暂无 UI 触发路径；`run_with_timeout` 可能存在的微小线程滞留未做根治（影响极小）。
+**未完成**：当前机器无法运行 Xcode；当前可用自动化接口不支持 Windows 原生应用视觉检查，未取得真实窗口截图；尚未使用用户实际素材验证。
 
-**下一步建议**：通过提供各类音视频样本（尤其带多种音轨的视频和纯音频文件）实际运行界面验证；如一切顺畅则打 Tag 触发 CI 并进入 v1.0.11 发布。
+**下一步建议**：先跑 macOS 26 arm64 CI，再以真实 MP4/MOV 覆盖 90°/180°、双向镜像、组合操作和批量取消。
 
 **风险 / 阻塞**：队列并发任务的日志错乱和性能竞争问题由于当前 UI 仅开放单任务执行暂时延后体现；`run_with_timeout` 遗留了较少可能的悬挂线程（低频）。
 
-**相关文件**：`core/src/ffi.rs`, `core/src/queue.rs`, `core/src/probe.rs`, `core/src/task.rs`, `macos/Clippi/FFI/ClippiFFI.swift`, `windows/Clippi/ClippiCore.cs`, `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/ViewModels/MainViewModel.cs`
+**相关文件**：`project-log/12-material-correction-design.md`, `core/src/types.rs`, `core/src/probe.rs`, `core/src/task.rs`, `macos/Clippi/Views/MainView.swift`, `macos/Clippi/ViewModels/MainViewModel.swift`, `windows/Clippi/MainWindow.xaml`, `windows/Clippi/ViewModels/MainViewModel.cs`

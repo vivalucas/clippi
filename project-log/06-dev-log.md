@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-09-05（v1.1.0 素材校正工作区）
+
+**触发原因**：用户需要将手机拍摄的一批素材在进入剪辑软件前统一旋转或镜像，要求单条与批量共用流程、可预览、无需外部 ffmpeg 配置，并重新审视双端页面结构。
+
+**修改内容**：
+1. `project-log/12-material-correction-design.md`, `10-planning-log.md` — 固化已确认范围、页面结构、所见即所得方向语义与 ADR-006。
+2. `core/src/types.rs`, `probe.rs`, `task.rs` — 增加源方向元数据、`Transform` 组合操作、旋转/镜像滤镜、输出方向标签清理与 WebM 容器编码回退。
+3. `macos/Clippi` — 新增素材列表、批量勾选、AVKit 预览、方向操作、输出目录和串行队列状态；旧工具保留在“其他工具”。
+4. `windows/Clippi` — 新增对应 WinUI 工作区、MediaPlayerElement 预览、批量状态模型与完整中英日本地化；旧工具保留在第二个页签。
+5. Swift/C# FFI — 开放 `queue_tasks` 封装，以 task ID 更新每条素材并支持停止全部。
+6. `.github/workflows/build-macos.yml` — 固定 `macos-26` arm64 runner，显式 arm64 构建并检查内置 ffmpeg/ffprobe 架构。
+7. 版本推进到 `1.1.0`，同步三语 README、Cargo、Xcode、Windows 项目与 manifest。
+8. 全面复核后重构队列注册与准备时序，使任务 ID 即时可取消，并避免已完成素材重复执行。
+9. 增加 HDR/像素格式探测、统一 MP4 质量策略、全部音轨映射与 AAC 192 kbps 输出。
+10. 原生播放器解码失败时由内置 ffmpeg 生成首帧兜底预览；补齐导入失败、任务失败详情与处理期间控件状态。
+11. Windows 修复 90° 预览裁切、页签误关闭、处理中切换工作区和窗口过小问题；macOS 修复源方向宽高计算和拖入文件夹行为。
+12. 确认 Rust、macOS、Windows 版本号统一为 `1.1.0`，以 `v1.1.0` 标签触发 GitHub Actions 双平台发布。
+
+**遇到的问题**：
+- WinUI 初版使用了不属于基础 WinUI 的 `GridSplitter`，XAML 编译失败，已改为稳定分隔线。
+- 当前可用自动化接口不支持 Windows 原生应用视觉检查，无法抓取运行窗口截图；macOS/Xcode 在当前 Windows 环境不可用。
+- 统一输出目录可能收到不同源目录的同名文件，任务规划阶段必须预留输出名而不能只检查磁盘现状。
+
+**解决方式**：
+- 两端都在整批任务创建前维护输出路径预留集合，同名文件按 `_2`、`_3` 避让。
+- Windows 预览将旋转和镜像拆为内外两层变换，保持与 ffmpeg“先旋转、后镜像”的顺序一致。
+- 用真实 ffmpeg 合成视频验证 90°+镜像输出宽高、音轨复制和方向标签清理。
+- 对 Windows 拖入文件及当前层文件夹统一增加异常保护；输出同名在整批规划阶段预留避让。
+
+**验证方式**：
+- `cargo fmt --check`
+- `cargo test`（18 项）
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo build --release`
+- `dotnet build windows/Clippi/Clippi.csproj -c Debug -p:Platform=x64 --no-restore`
+- `dotnet build windows/Clippi/Clippi.csproj -c Release -p:Platform=x64 --no-restore`
+- PowerShell XML/资源重复键检查
+- Windows 应用隐藏启动冒烟测试
+- ffmpeg/ffprobe 合成素材端到端变换检查
+
+**验证结果**：
+- Rust 核心与 Windows x64 Debug/Release 构建通过，0 warning / 0 error。
+- Rust 18 项测试、严格 Clippy 和 Release 构建通过；Windows 应用可正常启动并稳定运行。
+- 合成视频写入 90° display matrix 后仍为 320×240 存储尺寸；仅标准化时输出正确变为 240×320。追加 90°+水平镜像组合验证后输出为 320×240，两个 AAC 音轨均保留，输出无旋转标签，兜底 JPEG 正常生成。
+- macOS 代码、macOS 26 arm64 CI 与真实双端素材仍需在对应平台运行验证。
+
+---
+
 ## 2026-06-13（第七轮审查修复）
 
 **触发原因**：第七轮全量代码审查发现了 FFI 回调竞争、队列失效、Scale 音频丢失和一系列性能与可用性问题，需要进行系统性重构与修复。

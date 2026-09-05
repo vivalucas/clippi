@@ -63,4 +63,46 @@
   <data name="ErrorProgressParseFailed" xml:space="preserve"><value>進捗の解析に失敗しました: {0}</value></data>
   <data name="DragCaption" xml:space="preserve"><value>ここにドロップ</value></data>
   <data name="CopyErrorDetailsButton.Content" xml:space="preserve"><value>詳細をコピー</value></data>
+  <data name="CorrectionOutputDefault" xml:space="preserve"><value>各素材フォルダ\Clippi-output</value></data>
+  <data name="CorrectionNothingToProcess" xml:space="preserve"><value>補正が必要な選択済み素材はありません</value></data>
+  <data name="CorrectionPendingSummary" xml:space="preserve"><value>{0} 本を処理 · 元ファイルは保持</value></data>
+  <data name="CorrectionRotateLeft" xml:space="preserve"><value>左へ 90°</value></data>
+  <data name="CorrectionRotateRight" xml:space="preserve"><value>右へ 90°</value></data>
+  <data name="CorrectionRotate180" xml:space="preserve"><value>180° 回転</value></data>
+  <data name="CorrectionFlipHorizontal" xml:space="preserve"><value>左右反転</value></data>
+  <data name="CorrectionFlipVertical" xml:space="preserve"><value>上下反転</value></data>
+  <data name="CorrectionNone" xml:space="preserve"><value>未調整</value></data>
+  <data name="CorrectionMetadata" xml:space="preserve"><value>方向メタデータ {0}°</value></data>
+  <data name="CorrectionStatusQueued" xml:space="preserve"><value>待機中</value></data>
+  <data name="CorrectionStatusCompleted" xml:space="preserve"><value>完了</value></data>
+  <data name="CorrectionStatusFailed" xml:space="preserve"><value>失敗</value></data>
+  <data name="CorrectionStatusCancelled" xml:space="preserve"><value>キャンセル済み</value></data>
+  <data name="CorrectionTab.Header" xml:space="preserve"><value>素材の向き補正</value></data>
+  <data name="CorrectionImportFailed" xml:space="preserve"><value>{0} 個のファイルを読み込めませんでした</value></data>
+  <data name="CorrectionImportErrorTitle" xml:space="preserve"><value>一部のファイルを読み込めませんでした</value></data>
+  <data name="DialogClose" xml:space="preserve"><value>OK</value></data>
+  <data name="CorrectionPreviewUnavailable" xml:space="preserve"><value>この形式は直接プレビューできませんが、処理は可能です</value></data>
+  <data name="OtherToolsTab.Header" xml:space="preserve"><value>その他のツール</value></data>
+  <data name="CorrectionAddFiles.Label" xml:space="preserve"><value>ファイルを追加</value></data>
+  <data name="CorrectionAddFolder.Label" xml:space="preserve"><value>フォルダを追加</value></data>
+  <data name="CorrectionClear.Label" xml:space="preserve"><value>クリア</value></data>
+  <data name="CorrectionEmptyTitle.Text" xml:space="preserve"><value>動画をドロップ</value></data>
+  <data name="CorrectionEmptySubtitle.Text" xml:space="preserve"><value>ファイルまたはフォルダ直下の動画を読み込めます</value></data>
+  <data name="CorrectionAddFilesButton.Content" xml:space="preserve"><value>ファイルを追加</value></data>
+  <data name="CorrectionAddFolderButton.Content" xml:space="preserve"><value>フォルダを追加</value></data>
+  <data name="CorrectionMaterials.Text" xml:space="preserve"><value>素材</value></data>
+  <data name="CorrectionRotateLeftButton.Content" xml:space="preserve"><value>左へ 90°</value></data>
+  <data name="CorrectionRotateRightButton.Content" xml:space="preserve"><value>右へ 90°</value></data>
+  <data name="CorrectionRotate180Button.Content" xml:space="preserve"><value>180° 回転</value></data>
+  <data name="CorrectionFlipHorizontalButton.Content" xml:space="preserve"><value>左右反転</value></data>
+  <data name="CorrectionFlipVerticalButton.Content" xml:space="preserve"><value>上下反転</value></data>
+  <data name="CorrectionResetButton.Content" xml:space="preserve"><value>リセット</value></data>
+  <data name="CorrectionScopeBoxLabel.Header" xml:space="preserve"><value>適用先</value></data>
+  <data name="CorrectionScopeChecked.Content" xml:space="preserve"><value>選択した素材</value></data>
+  <data name="CorrectionScopeAll.Content" xml:space="preserve"><value>すべての素材</value></data>
+  <data name="CorrectionApplyButton.Content" xml:space="preserve"><value>適用</value></data>
+  <data name="CorrectionOutputTo.Text" xml:space="preserve"><value>出力先</value></data>
+  <data name="CorrectionChangeButton.Content" xml:space="preserve"><value>変更</value></data>
+  <data name="CorrectionStartButton.Content" xml:space="preserve"><value>処理を開始</value></data>
+  <data name="CorrectionStopButton.Content" xml:space="preserve"><value>すべて停止</value></data>
 </root>
