@@ -70,6 +70,13 @@ enum ClippiFFI {
         return cancelled
     }
 
+    static func clearProgressCallback() {
+        callbackLock.lock()
+        callbacks.removeAll()
+        pendingQueueCallback = nil
+        callbackLock.unlock()
+    }
+
     /// Generate a JPEG fallback for containers AVKit cannot play directly.
     static func generatePreviewImage(inputPath: String, outputPath: String) -> Bool {
         guard let input = inputPath.cString(using: .utf8),
