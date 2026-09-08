@@ -83,14 +83,20 @@ jobs:
       - name: Build installer and portable executables
         run: |
           $iscc = $env:ISCC
-          # SourcePath/DistPath defaults in Clippi.iss already point at the
-          # repo's build\ and dist\ folders; only pass the release version.
           # Prefer the tag version on release builds; otherwise keep the .iss default.
           $version = if ($env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)$') { $Matches[1] } else { "" }
-          $common = @()
+          # Pass absolute paths: Inno 6.x resolves relative [Files] sources
+          # against its own working directory, unlike Inno 7.x.
+          $common = @("/DSourcePath=$PWD\build", "/DDistPath=$PWD\dist")
           if ($version) { $common += "/DAppVersion=$version" }
           & $iscc @common installer\Clippi.iss
           & $iscc @common "/DPORTABLE" installer\Clippi.iss
+          # Inno does not error when a wildcard matches nothing, so assert the
+          # executables actually contain the app.
+          foreach ($exe in "Clippi-Setup-x64.exe", "Clippi-Portable-x64.exe") {
+            $size = (Get-Item "dist\$exe").Length
+            if ($size -lt 20MB) { throw "$exe is only $size bytes - packaging step failed" }
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
