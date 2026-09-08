@@ -28,7 +28,11 @@ Clippi は、クロスプラットフォームのネイティブデスクトッ�
 正式版は GitHub Releases で配布します：
 
 - macOS：`Clippi-macos.dmg`
-- Windows：`Clippi-windows.zip`
+- Windows：`Clippi-Setup-x64.exe`（インストーラー、推奨）
+- Windows：`Clippi-Portable-x64.exe`（ポータブル版。任意のフォルダーに一度だけ解凍する単一 exe）
+- Windows：`Clippi-windows.zip`（通常の zip アーカイブ、上級者向け）
+
+> WinUI 3 アプリは完全な単一ファイル exe としてビルドできません。ポータブル版は一度解凍する自己解凍形式で、展開先の `Clippi.exe` を実行してください。
 
 リリースビルドには ffmpeg / ffprobe が同梱されるため、ユーザーが ffmpeg を別途インストールする必要はありません。開発環境では `scripts/download_ffmpeg.*` でローカルバイナリを取得できます。Rust コアライブラリは、アプリ同梱パス、`CLIPPI_FFMPEG_DIR`、システム `PATH` の順に検索します。
 
@@ -81,6 +85,9 @@ clippi/
 │   ├── download_ffmpeg.ps1
 │   ├── build-core.sh
 │   └── build-core.ps1
+├── installer/
+│   ├── Clippi.iss                 # Inno Setup スクリプト（インストーラー + ポータブル）
+│   └── ChineseSimplified.isl      # インストーラー簡体中文言語ファイル
 ├── .github/workflows/
 │   ├── build-macos.yml
 │   └── build-windows.yml
@@ -132,7 +139,7 @@ git push origin v1.0.0
 ## 現在の制限
 
 - 素材補正は一括処理に対応し、トリミングなどのその他のツールは引き続き単一ファイル中心
-- Windows 版はインストーラーではなく zip 配布
+- Windows 版はコード署名されていないため、初回起動時に SmartScreen の警告が表示されることがあります（「実行」を選択してください）
 - macOS 版は未署名のため、初回起動時にシステムの許可操作が必要な場合があります
 - 出力ファイルサイズ予測、空き容量警告、高度な ffmpeg パラメータ編集、コマンドプレビュー、ログ展開、キュー履歴・再試行などの高度な管理は今後対応予定
 

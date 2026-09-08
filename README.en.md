@@ -28,7 +28,11 @@ Clippi is a cross-platform native desktop video processing tool. It uses ffmpeg 
 Official builds are distributed through GitHub Releases:
 
 - macOS: `Clippi-macos.dmg`
-- Windows: `Clippi-windows.zip`
+- Windows: `Clippi-Setup-x64.exe` (installer, recommended)
+- Windows: `Clippi-Portable-x64.exe` (portable, single exe that extracts once to any folder)
+- Windows: `Clippi-windows.zip` (plain archive, for advanced users)
+
+> WinUI 3 apps cannot be compiled into a true single-file executable; the portable build is a self-extractor that unpacks once, after which you run `Clippi.exe` from the chosen folder.
 
 Release builds bundle ffmpeg / ffprobe with the app, so users do not need to install ffmpeg separately. Development environments can also download local binaries through `scripts/download_ffmpeg.*`. The Rust core library searches bundled app paths first, then `CLIPPI_FFMPEG_DIR`, and finally the system `PATH`.
 
@@ -81,6 +85,9 @@ clippi/
 │   ├── download_ffmpeg.ps1
 │   ├── build-core.sh
 │   └── build-core.ps1
+├── installer/
+│   ├── Clippi.iss                 # Inno Setup script (installer + portable)
+│   └── ChineseSimplified.isl      # Simplified Chinese installer language
 ├── .github/workflows/
 │   ├── build-macos.yml
 │   └── build-windows.yml
@@ -132,7 +139,7 @@ git push origin v1.0.0
 ## Current Limitations
 
 - Material correction supports batch processing; trim and the other tools remain primarily single-file workflows
-- Windows builds are distributed as zip archives, not installers
+- Windows builds are not code-signed; SmartScreen may show a "Windows protected your PC" prompt on first run — choose "Run anyway"
 - macOS builds are unsigned, so first launch may require allowing the app through system prompts
 - Output size estimation, disk-space warnings, advanced ffmpeg parameter editing, command previews, expandable logs, and advanced queue history/retry controls are still planned
 

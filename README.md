@@ -28,7 +28,11 @@ Clippi 是一款跨平台原生桌面视频处理工具。它以 ffmpeg / ffprob
 正式版本通过 GitHub Releases 分发：
 
 - macOS：`Clippi-macos.dmg`
-- Windows：`Clippi-windows.zip`
+- Windows：`Clippi-Setup-x64.exe`（安装版，推荐）
+- Windows：`Clippi-Portable-x64.exe`（便携版，单个 exe，解压到任意文件夹即可运行）
+- Windows：`Clippi-windows.zip`（免安装压缩包，适合高级用户）
+
+> WinUI 3 应用无法编译成真正的单文件 exe，便携版是"首次运行时解压一次"的自解压程序：双击后选择解压目录，之后直接运行解压目录里的 `Clippi.exe`。
 
 Release 构建会把 ffmpeg / ffprobe 一起打包进应用产物；用户不需要额外安装 ffmpeg。开发环境也可以通过 `scripts/download_ffmpeg.*` 下载本地二进制，Rust 核心库会优先查找应用内置路径，其次查找 `CLIPPI_FFMPEG_DIR`，最后回退到系统 `PATH`。
 
@@ -81,6 +85,9 @@ clippi/
 │   ├── download_ffmpeg.ps1
 │   ├── build-core.sh
 │   └── build-core.ps1
+├── installer/
+│   ├── Clippi.iss                 # Inno Setup 打包脚本（安装版 + 便携版）
+│   └── ChineseSimplified.isl      # 安装器简体中文语言包
 ├── .github/workflows/
 │   ├── build-macos.yml
 │   └── build-windows.yml
@@ -132,7 +139,7 @@ git push origin v1.0.0
 ## 当前限制
 
 - 素材校正支持批量处理；裁剪等其他工具仍以单文件处理为主
-- Windows 产物目前是 zip 包，不是安装器
+- Windows 产物未做代码签名，首次运行时 SmartScreen 可能提示"Windows 已保护你的电脑"，点击"仍要运行"即可
 - macOS 产物未签名，首次运行可能需要按系统提示允许打开
 - 输出文件大小预估、磁盘空间预警、高级 ffmpeg 参数编辑、命令预览、日志展开，以及队列历史/重试等高级管理仍待完善
 

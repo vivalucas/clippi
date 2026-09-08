@@ -6,7 +6,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="using:Clippi.ViewModels"
     mc:Ignorable="d"
-    x:Uid="MainWindow"
     Title="Clippi">
 
     <TabView x:Name="WorkspaceTabs" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent"

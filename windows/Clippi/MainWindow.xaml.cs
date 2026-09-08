@@ -31,7 +31,11 @@ namespace Clippi
         {
             this.InitializeComponent();
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-            CorrectionPlayer.MediaPlayer.MediaFailed += OnCorrectionPreviewFailed;
+            // MediaPlayerElement only creates its MediaPlayer lazily, so attach our
+            // own up front to keep the failure handler wired before any source loads.
+            var player = CorrectionPlayer.MediaPlayer ?? new MediaPlayer();
+            if (CorrectionPlayer.MediaPlayer is null) CorrectionPlayer.SetMediaPlayer(player);
+            player.MediaFailed += OnCorrectionPreviewFailed;
             AppWindow.Resize(new SizeInt32(1100, 720));
             AppWindow.Changed += OnAppWindowChanged;
             Closed += (_, _) => CleanupFallbackPreview();

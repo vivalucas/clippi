@@ -61,6 +61,37 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path build\* -DestinationPath dist\Clippi-windows.zip -Force
 
+      - name: Install Inno Setup
+        run: |
+          # The bundled language file needs Inno Setup 6.5+; both 6.x and 7.x work.
+          $min = [version]"6.5.0"
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 7\ISCC.exe"
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } |
+            Where-Object { (Get-Item $_).VersionInfo.FileVersion -ge $min } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup --no-progress -y --force
+            $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $iscc) { throw "ISCC.exe not found after installing Inno Setup" }
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build installer and portable executables
+        run: |
+          $iscc = $env:ISCC
+          # SourcePath/DistPath defaults in Clippi.iss already point at the
+          # repo's build\ and dist\ folders; only pass the release version.
+          # Prefer the tag version on release builds; otherwise keep the .iss default.
+          $version = if ($env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)$') { $Matches[1] } else { "" }
+          $common = @()
+          if ($version) { $common += "/DAppVersion=$version" }
+          & $iscc @common installer\Clippi.iss
+          & $iscc @common "/DPORTABLE" installer\Clippi.iss
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -76,4 +107,4 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create $env:GITHUB_REF_NAME --title $env:GITHUB_REF_NAME --notes "Automated build for $env:GITHUB_REF_NAME"
           }
-          gh release upload $env:GITHUB_REF_NAME dist\Clippi-windows.zip --clobber
+          gh release upload $env:GITHUB_REF_NAME dist\Clippi-windows.zip dist\Clippi-Setup-x64.exe dist\Clippi-Portable-x64.exe --clobber
