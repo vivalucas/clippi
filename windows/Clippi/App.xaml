@@ -5,6 +5,24 @@
     xmlns:local="using:Clippi">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="BrandCanvasBrush" Color="#F5F7FA"/>
+                    <SolidColorBrush x:Key="BrandSidebarBrush" Color="#EBEFF4"/>
+                    <SolidColorBrush x:Key="BrandSurfaceBrush" Color="#FFFFFF"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="BrandCanvasBrush" Color="#1B1F25"/>
+                    <SolidColorBrush x:Key="BrandSidebarBrush" Color="#20252C"/>
+                    <SolidColorBrush x:Key="BrandSurfaceBrush" Color="#262D35"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="BrandCanvasBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="BrandSidebarBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                    <SolidColorBrush x:Key="BrandSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <Color x:Key="SystemAccentColor">#287DB3</Color>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls"/>
             </ResourceDictionary.MergedDictionaries>

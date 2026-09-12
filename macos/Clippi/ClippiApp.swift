@@ -9,7 +9,7 @@ struct ClippiApp: App {
             MainView()
         }
         .windowStyle(.titleBar)
-        .defaultSize(width: 700, height: 600)
+        .defaultSize(width: 1180, height: 820)
     }
 }
 

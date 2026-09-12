@@ -392,7 +392,7 @@ fn build_ffmpeg_args(config: &TaskConfig, source_duration: f64) -> Result<Vec<St
             }
         }
         Operation::Scale { width, height } => {
-            args.extend(["-vf".to_string(), format!("scale={}:{}", width, height)]);
+            args.extend(["-vf".to_string(), format!("scale={}:{}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1", width, height)]);
             if let Some(ref vc) = config.video_codec {
                 args.extend(["-c:v".to_string(), vc.clone()]);
             }
@@ -412,6 +412,29 @@ fn build_ffmpeg_args(config: &TaskConfig, source_duration: f64) -> Result<Vec<St
             args.extend(["-an".to_string()]);
             args.extend(["-c:v".to_string(), "copy".to_string()]);
         }
+    }
+
+    // Re-encoded WebM sources (scale and precise trim included) need WebM codecs.
+    let webm = std::path::Path::new(&config.output_path)
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("webm"));
+    if webm
+        && matches!(
+            config.operation,
+            Operation::Scale { .. }
+                | Operation::Trim {
+                    fast_mode: false,
+                    ..
+                }
+        )
+    {
+        args.extend([
+            "-c:v".to_string(),
+            "libvpx-vp9".to_string(),
+            "-c:a".to_string(),
+            "libopus".to_string(),
+        ]);
     }
 
     args.extend(["-threads".to_string(), "0".to_string()]);
@@ -514,6 +537,10 @@ pub(crate) fn validate_config(config: &TaskConfig) -> Result<()> {
         return Err(CoreError::InvalidParams("output path is empty".to_string()).into());
     }
 
+    if std::path::Path::new(&config.output_path).exists() {
+        return Err(CoreError::InvalidParams("output file already exists".to_string()).into());
+    }
+
     if let Operation::Trim { start, end, .. } = &config.operation {
         if !start.is_finite() || !end.is_finite() {
             return Err(CoreError::InvalidParams("trim times must be finite".to_string()).into());
@@ -521,6 +548,15 @@ pub(crate) fn validate_config(config: &TaskConfig) -> Result<()> {
         if *start < 0.0 || *end <= *start {
             return Err(CoreError::InvalidParams(
                 "trim end time must be greater than start time".to_string(),
+            )
+            .into());
+        }
+    }
+
+    if let Operation::Scale { width, height } = &config.operation {
+        if *width < 2 || *height < 2 || width % 2 != 0 || height % 2 != 0 {
+            return Err(CoreError::InvalidParams(
+                "scale dimensions must be positive even numbers".to_string(),
             )
             .into());
         }
@@ -633,7 +669,12 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(arg_pair(&args, "-vf").as_deref(), Some("scale=1280:720"));
+        assert_eq!(
+            arg_pair(&args, "-vf").as_deref(),
+            Some(
+                "scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1"
+            )
+        );
         assert_eq!(
             arg_pair(&args, "-c:v").as_deref(),
             Some("h264_videotoolbox")
@@ -712,6 +753,40 @@ mod tests {
             fast_mode: true,
         });
         assert!(validate_config(&nan).is_err());
+    }
+
+    #[test]
+    fn scale_rejects_invalid_dimensions() {
+        for (width, height) in [(0, 720), (1280, 0), (1279, 720)] {
+            assert!(validate_config(&config(Operation::Scale { width, height })).is_err());
+        }
+    }
+
+    #[test]
+    fn webm_scale_and_precise_trim_select_compatible_codecs() {
+        for operation in [
+            Operation::Scale {
+                width: 1280,
+                height: 720,
+            },
+            Operation::Trim {
+                start: 0.0,
+                end: 1.0,
+                fast_mode: false,
+            },
+        ] {
+            let mut task = config(operation);
+            task.output_path = "/tmp/result.webm".to_string();
+            let args = build_ffmpeg_args(&task, 2.0).unwrap();
+            assert_eq!(
+                args.windows(2).rev().find(|p| p[0] == "-c:v").unwrap()[1],
+                "libvpx-vp9"
+            );
+            assert_eq!(
+                args.windows(2).rev().find(|p| p[0] == "-c:a").unwrap()[1],
+                "libopus"
+            );
+        }
     }
 
     #[test]

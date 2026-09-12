@@ -5,6 +5,10 @@ import AppKit
 
 @MainActor
 class MainViewModel: ObservableObject {
+    private let preferences: UserDefaults
+    @Published var defaultOutputDirectory: String {
+        didSet { preferences.set(defaultOutputDirectory, forKey: "defaultOutputDirectory") }
+    }
     @Published var fileInfo: FileInfo?
     @Published var selectedOperation: OperationType = .trim {
         didSet { refreshOutputPath() }
@@ -12,6 +16,7 @@ class MainViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var progress: Double = 0
     @Published var statusMessage = ""
+    @Published var completedOutputPath: String?
     @Published var showError = false
     @Published var errorMessage = ""
     @Published var errorDetails = ""
@@ -48,6 +53,7 @@ class MainViewModel: ObservableObject {
     @Published var outputPath: String = ""
 
     private var currentTaskId: UInt64 = 0
+    private var taskGeneration = 0
     private var probeGeneration = 0
 
     enum OperationType: CaseIterable {
@@ -192,7 +198,9 @@ class MainViewModel: ObservableObject {
         let hwAccel: String?
     }
 
-    init() {
+    init(preferences: UserDefaults = .standard) {
+        self.preferences = preferences
+        self.defaultOutputDirectory = preferences.string(forKey: "defaultOutputDirectory") ?? ""
         Task {
             let result = await Self.loadGpuDetection()
             applyGpuDetection(result)
@@ -208,12 +216,38 @@ class MainViewModel: ObservableObject {
         }
     }
 
+    // Reuse the same selected source across tools instead of maintaining two unrelated inputs.
+    func useSourceForCorrection() {
+        guard !isProcessing, !isImporting, let info = fileInfo, info.width > 0 else { return }
+        if let existing = mediaItems.first(where: { $0.info.path == info.path }) {
+            selectedMediaId = existing.id
+        } else {
+            let item = MediaItem(info: info)
+            mediaItems.append(item)
+            selectedMediaId = item.id
+        }
+    }
+
+    func useSelectedMedia() {
+        guard !isProcessing, !isImporting, let item = selectedMediaItem,
+              item.info.path != fileInfo?.path else { return }
+        fileInfo = item.info
+        startTime = 0
+        endTime = item.info.duration
+        progress = 0
+        statusMessage = ""
+        completedOutputPath = nil
+        outputPath = generateOutputPath(input: item.info.path)
+    }
+
     func probeFile(at url: URL) {
+        guard !isProcessing, !isImporting else { return }
         guard Self.isSupportedMedia(url) else {
             showError(L10n.string("error.unsupportedVideo"))
             return
         }
 
+        isImporting = true
         let path = url.path
         probeGeneration += 1
         let generation = probeGeneration
@@ -221,24 +255,35 @@ class MainViewModel: ObservableObject {
         Task {
             let result = await Self.loadProbeResult(path: path)
             guard generation == probeGeneration else { return }
+            isImporting = false
             applyProbeResult(result, path: path)
         }
     }
 
     func startProcessing() {
-        guard validateBeforeStart() else { return }
+        guard !isProcessing, !isImporting, validateBeforeStart() else { return }
 
         isProcessing = true
         progress = 0
+        completedOutputPath = nil
         statusMessage = L10n.string("status.processing")
 
         let config = buildTaskConfig()
+        taskGeneration += 1
+        let generation = taskGeneration
 
         Task {
-            let taskId = ClippiFFI.runTask(config: config) { [weak self] progressJson in
-                DispatchQueue.main.async {
-                    self?.updateProgress(from: progressJson)
+            let taskId = await Task.detached {
+                ClippiFFI.runTask(config: config) { [weak self] progressJson in
+                    DispatchQueue.main.async {
+                        guard let self, self.taskGeneration == generation else { return }
+                        self.updateProgress(from: progressJson)
+                    }
                 }
+            }.value
+            guard taskGeneration == generation, isProcessing else {
+                if taskId > 0 { _ = ClippiFFI.cancelTask(id: taskId) }
+                return
             }
 
             if taskId > 0 {
@@ -253,12 +298,12 @@ class MainViewModel: ObservableObject {
     }
 
     func cancelProcessing() {
-        if currentTaskId > 0 {
-            _ = ClippiFFI.cancelTask(id: currentTaskId)
-            currentTaskId = 0
-            isProcessing = false
-            statusMessage = L10n.string("status.cancelled")
-        }
+        taskGeneration += 1
+        if currentTaskId > 0 { _ = ClippiFFI.cancelTask(id: currentTaskId) }
+        currentTaskId = 0
+        isProcessing = false
+        progress = 0
+        statusMessage = L10n.string("status.cancelled")
     }
 
     private func buildTaskConfig() -> [String: Any] {
@@ -323,6 +368,7 @@ class MainViewModel: ObservableObject {
             case "completed":
                 isProcessing = false
                 currentTaskId = 0
+                completedOutputPath = outputPath
                 statusMessage = L10n.string("status.completed")
                 return
             case "failed", "cancelled":
@@ -353,7 +399,7 @@ class MainViewModel: ObservableObject {
     private func generateOutputPath(input: String) -> String {
         let url = URL(fileURLWithPath: input)
         let name = url.deletingPathExtension().lastPathComponent
-        let dir = url.deletingLastPathComponent()
+        let dir = defaultOutputDirectory.isEmpty ? url.deletingLastPathComponent() : URL(fileURLWithPath: defaultOutputDirectory, isDirectory: true)
         let ext = outputExtension(inputPath: input)
         let initial = dir.appendingPathComponent("\(name)_output.\(ext)").path
         return uniqueOutputPath(for: initial)
@@ -361,7 +407,13 @@ class MainViewModel: ObservableObject {
 
     private func refreshOutputPath() {
         guard let path = fileInfo?.path else { return }
-        outputPath = generateOutputPath(input: path)
+        if outputPath.isEmpty {
+            outputPath = generateOutputPath(input: path)
+        } else {
+            let output = URL(fileURLWithPath: outputPath).deletingPathExtension()
+                .appendingPathExtension(outputExtension(inputPath: path))
+            outputPath = uniqueOutputPath(for: output.path)
+        }
     }
 
     nonisolated private static func loadGpuDetection() async -> [String: Any]? {
@@ -377,8 +429,8 @@ class MainViewModel: ObservableObject {
     }
 
     private func applyProbeResult(_ result: [String: Any]?, path: String) {
-        guard let result else {
-            showError(L10n.string("error.probeFailed"))
+        guard let result, result["error"] == nil else {
+            showError(L10n.string("error.probeFailed"), details: result?["error"] as? String ?? "")
             return
         }
 
@@ -397,6 +449,10 @@ class MainViewModel: ObservableObject {
             path: path
         )
 
+        startTime = 0
+        progress = 0
+        statusMessage = ""
+        completedOutputPath = nil
         endTime = fileInfo?.duration ?? 0
         outputPath = generateOutputPath(input: path)
     }
@@ -429,7 +485,7 @@ class MainViewModel: ObservableObject {
         }
 
         if selectedOperation == .trim {
-            guard startTime >= 0, endTime > startTime else {
+            guard startTime.isFinite, endTime.isFinite, startTime >= 0, endTime > startTime else {
                 showError(L10n.string("error.trimEndAfterStart"))
                 return false
             }
@@ -575,7 +631,7 @@ class MainViewModel: ObservableObject {
     }
 
     func clearMedia() {
-        guard !isProcessing else { return }
+        guard !isProcessing, !isImporting else { return }
         mediaItems.removeAll()
         selectedMediaId = nil
         overallProgress = 0
@@ -630,6 +686,7 @@ class MainViewModel: ObservableObject {
     }
 
     func applyCurrentCorrection() {
+        guard !isProcessing else { return }
         guard let current = selectedMediaItem else { return }
         let targetIds: Set<UUID>
         switch correctionScope {
@@ -643,7 +700,7 @@ class MainViewModel: ObservableObject {
     }
 
     func startCorrectionQueue() {
-        guard !isProcessing else { return }
+        guard !isProcessing, !isImporting else { return }
         let indexes = mediaItems.indices.filter { mediaItems[$0].isChecked && mediaItems[$0].isPending }
         guard !indexes.isEmpty else {
             showError(L10n.string("correction.error.nothingToProcess"))
@@ -692,7 +749,10 @@ class MainViewModel: ObservableObject {
         Task {
             let ids = await Task.detached {
                 ClippiFFI.queueTasks(configs: configs) { [weak self] json in
-                    DispatchQueue.main.async { self?.updateCorrectionProgress(json) }
+                    DispatchQueue.main.async {
+                        guard let self, self.correctionQueueGeneration == generation else { return }
+                        self.updateCorrectionProgress(json)
+                    }
                 }
             }.value
             guard generation == correctionQueueGeneration, isProcessing else {
@@ -701,6 +761,12 @@ class MainViewModel: ObservableObject {
                 return
             }
             guard ids.count == configuredIndexes.count else {
+                correctionQueueGeneration += 1
+                for id in ids { _ = ClippiFFI.cancelTask(id: id) }
+                pendingCorrectionProgress.removeAll()
+                for index in configuredIndexes {
+                    mediaItems[index].status = .failed(L10n.string("error.startTaskFailed"))
+                }
                 isProcessing = false
                 showError(L10n.string("error.startTaskFailed"))
                 return
@@ -708,6 +774,9 @@ class MainViewModel: ObservableObject {
             correctionTaskIds = ids
             for (offset, id) in ids.enumerated() {
                 mediaItems[configuredIndexes[offset]].taskId = id
+            }
+            // Register every task before replaying early completion callbacks.
+            for id in ids {
                 if let pending = pendingCorrectionProgress.removeValue(forKey: id) {
                     updateCorrectionProgress(pending)
                 }
@@ -758,7 +827,7 @@ class MainViewModel: ObservableObject {
 
     private func correctionOutputPath(for item: MediaItem) -> URL {
         let source = URL(fileURLWithPath: item.info.path)
-        let directory = correctionOutputDirectory ?? source.deletingLastPathComponent().appendingPathComponent("Clippi-output", isDirectory: true)
+        let directory = correctionOutputDirectory ?? (defaultOutputDirectory.isEmpty ? source.deletingLastPathComponent().appendingPathComponent("Clippi-output", isDirectory: true) : URL(fileURLWithPath: defaultOutputDirectory, isDirectory: true))
         return directory
             .appendingPathComponent(source.deletingPathExtension().lastPathComponent)
             .appendingPathExtension("mp4")

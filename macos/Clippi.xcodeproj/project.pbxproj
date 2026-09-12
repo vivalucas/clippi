@@ -225,7 +225,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.0;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				ARCHS = arm64;
 				PRODUCT_BUNDLE_IDENTIFIER = com.clippi.Clippi;
@@ -234,6 +234,8 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Clippi/ClippiCore.h";
 				SWIFT_VERSION = 5.0;
 				OTHER_LDFLAGS = (
+					"-framework",
+					AVKit,
 					"$(PROJECT_DIR)/../core/target/release/libclippi_core.a",
 				);
 			};
@@ -252,7 +254,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.1;
+				MARKETING_VERSION = 1.2.0;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				ARCHS = arm64;
 				PRODUCT_BUNDLE_IDENTIFIER = com.clippi.Clippi;
@@ -261,6 +263,8 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Clippi/ClippiCore.h";
 				SWIFT_VERSION = 5.0;
 				OTHER_LDFLAGS = (
+					"-framework",
+					AVKit,
 					"$(PROJECT_DIR)/../core/target/release/libclippi_core.a",
 				);
 			};

@@ -71,3 +71,10 @@ cargo build
 | 日期 | 变更内容 | 原因 |
 |------|----------|------|
 | 2025-05-14 | 初始版本，基于项目规划文档填充 | 项目初始化 |
+
+
+## 2026-09-12 界面重设计同步
+
+偏好位置：macOS UserDefaults；Windows %LOCALAPPDATA%/Clippi/{appearance.txt,default-output.txt}。恢复默认可在设置选择跟随系统/素材目录，无需环境变量。ffmpeg 定位顺序以 core 源码为准：CLIPPI_FFMPEG_DIR → 应用内置路径 → PATH；三语 README 已纠正旧顺序。
+
+详见 [本轮综合自查](13-ui-redesign-review.md)。历史阶段描述保留供追溯，以本节为准。

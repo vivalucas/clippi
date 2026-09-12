@@ -38,7 +38,6 @@
   <data name="OutputPathBox.Header" xml:space="preserve"><value>出力先</value></data>
   <data name="ChooseOutputButton.Content" xml:space="preserve"><value>選択...</value></data>
   <data name="CancelButton.Content" xml:space="preserve"><value>キャンセル</value></data>
-  <data name="StartButton.Content" xml:space="preserve"><value>処理開始</value></data>
   <data name="EncoderSoftware" xml:space="preserve"><value>ソフトウェアエンコード</value></data>
   <data name="StatusProcessing" xml:space="preserve"><value>処理中...</value></data>
   <data name="StatusProcessingSpeed" xml:space="preserve"><value> 速度: {0}</value></data>
@@ -105,4 +104,34 @@
   <data name="CorrectionChangeButton.Content" xml:space="preserve"><value>変更</value></data>
   <data name="CorrectionStartButton.Content" xml:space="preserve"><value>処理を開始</value></data>
   <data name="CorrectionStopButton.Content" xml:space="preserve"><value>すべて停止</value></data>
+  <data name="NavTrim.Content" xml:space="preserve"><value>トリミング</value></data>
+  <data name="NavConvert.Content" xml:space="preserve"><value>形式変換</value></data>
+  <data name="NavScale.Content" xml:space="preserve"><value>サイズ変更</value></data>
+  <data name="NavExtract.Content" xml:space="preserve"><value>音声抽出</value></data>
+  <data name="NavMute.Content" xml:space="preserve"><value>音声削除</value></data>
+  <data name="NavCorrection.Content" xml:space="preserve"><value>回転と反転</value></data>
+  <data name="LocalProcessing.Text" xml:space="preserve"><value>ローカルで処理</value></data>
+  <data name="ReplaceSource.Content" xml:space="preserve"><value>素材を選択</value></data>
+  <data name="StartButton.Content" xml:space="preserve"><value>書き出す</value></data>
+  <data name="ToolTitle.Text" xml:space="preserve"><value>トリミング</value></data>
+  <data name="NavAudio.Content" xml:space="preserve"><value>音声処理</value></data>
+  <data name="AppearancePicker.Header" xml:space="preserve"><value>外観</value></data>
+  <data name="AppearanceSystem.Content" xml:space="preserve"><value>システム</value></data>
+  <data name="AppearanceLight.Content" xml:space="preserve"><value>ライト</value></data>
+  <data name="AppearanceDark.Content" xml:space="preserve"><value>ダーク</value></data>
+  <data name="ChooseMediaButton.Content" xml:space="preserve"><value>素材を選択</value></data>
+  <data name="ScaleHint.Text" xml:space="preserve"><value>元の縦横比を保ち、選択したサイズ内に収めます。</value></data>
+  <data name="StatusReading" xml:space="preserve"><value>素材を読み込み中…</value></data>
+  <data name="AppearanceSaveFailed" xml:space="preserve"><value>外観を変更しましたが、設定を保存できませんでした。</value></data>
+  <data name="SettingsTitle.Text" xml:space="preserve"><value>設定</value></data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve"><value>Clippiを自分好みに</value></data>
+  <data name="SettingsExport.Text" xml:space="preserve"><value>既定の書き出し先</value></data>
+  <data name="SettingsSourceFolder" xml:space="preserve"><value>素材と同じフォルダ</value></data>
+  <data name="SettingsExportHint.Text" xml:space="preserve"><value>新しく読み込む素材と保存先未指定の一括書き出しに適用します。現在の出力先は変更しません。</value></data>
+  <data name="SettingsRestore.Content" xml:space="preserve"><value>既定に戻す</value></data>
+  <data name="SettingsLocalHint.Text" xml:space="preserve"><value>素材はアップロードされません。元のファイルは保持されます。</value></data>
+  <data name="SettingsButton.Content" xml:space="preserve"><value>設定</value></data>
+  <data name="SettingsChooseFolder.Content" xml:space="preserve"><value>変更</value></data>
+  <data name="PreviewPlay.Content" xml:space="preserve"><value>再生 / 一時停止</value></data>
+  <data name="PreviewPosition" xml:space="preserve"><value>再生位置</value></data>
 </root>

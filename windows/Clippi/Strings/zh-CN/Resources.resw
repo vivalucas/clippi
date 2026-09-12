@@ -38,7 +38,7 @@
   <data name="OutputPathBox.Header" xml:space="preserve"><value>输出路径</value></data>
   <data name="ChooseOutputButton.Content" xml:space="preserve"><value>选择...</value></data>
   <data name="CancelButton.Content" xml:space="preserve"><value>取消</value></data>
-  <data name="StartButton.Content" xml:space="preserve"><value>开始处理</value></data>
+  <data name="StartButton.Content" xml:space="preserve"><value>导出</value></data>
   <data name="EncoderSoftware" xml:space="preserve"><value>软件编码</value></data>
   <data name="StatusProcessing" xml:space="preserve"><value>处理中...</value></data>
   <data name="StatusProcessingSpeed" xml:space="preserve"><value> 速度: {0}</value></data>
@@ -103,6 +103,35 @@
   <data name="CorrectionApplyButton.Content" xml:space="preserve"><value>应用</value></data>
   <data name="CorrectionOutputTo.Text" xml:space="preserve"><value>输出到</value></data>
   <data name="CorrectionChangeButton.Content" xml:space="preserve"><value>更改</value></data>
-  <data name="CorrectionStartButton.Content" xml:space="preserve"><value>开始处理</value></data>
+  <data name="CorrectionStartButton.Content" xml:space="preserve"><value>导出</value></data>
   <data name="CorrectionStopButton.Content" xml:space="preserve"><value>停止全部</value></data>
+  <data name="NavTrim.Content" xml:space="preserve"><value>裁剪</value></data>
+  <data name="NavConvert.Content" xml:space="preserve"><value>转换格式</value></data>
+  <data name="NavScale.Content" xml:space="preserve"><value>缩放</value></data>
+  <data name="NavExtract.Content" xml:space="preserve"><value>提取音频</value></data>
+  <data name="NavMute.Content" xml:space="preserve"><value>去除音频</value></data>
+  <data name="NavCorrection.Content" xml:space="preserve"><value>旋转与镜像</value></data>
+  <data name="LocalProcessing.Text" xml:space="preserve"><value>在本机处理</value></data>
+  <data name="ReplaceSource.Content" xml:space="preserve"><value>选择素材</value></data>
+  <data name="ToolTitle.Text" xml:space="preserve"><value>裁剪</value></data>
+  <data name="NavAudio.Content" xml:space="preserve"><value>音频处理</value></data>
+  <data name="AppearancePicker.Header" xml:space="preserve"><value>外观</value></data>
+  <data name="AppearanceSystem.Content" xml:space="preserve"><value>跟随系统</value></data>
+  <data name="AppearanceLight.Content" xml:space="preserve"><value>浅色</value></data>
+  <data name="AppearanceDark.Content" xml:space="preserve"><value>深色</value></data>
+  <data name="ChooseMediaButton.Content" xml:space="preserve"><value>选择素材</value></data>
+  <data name="ScaleHint.Text" xml:space="preserve"><value>保持原始比例，适配所选尺寸范围。</value></data>
+  <data name="StatusReading" xml:space="preserve"><value>正在读取素材…</value></data>
+  <data name="AppearanceSaveFailed" xml:space="preserve"><value>外观已切换，但无法保存设置。</value></data>
+  <data name="SettingsTitle.Text" xml:space="preserve"><value>设置</value></data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve"><value>按你的习惯使用 Clippi</value></data>
+  <data name="SettingsExport.Text" xml:space="preserve"><value>默认导出位置</value></data>
+  <data name="SettingsSourceFolder" xml:space="preserve"><value>素材所在文件夹</value></data>
+  <data name="SettingsExportHint.Text" xml:space="preserve"><value>用于新导入的素材和未指定位置的批量导出。当前输出路径保持不变。</value></data>
+  <data name="SettingsRestore.Content" xml:space="preserve"><value>恢复默认</value></data>
+  <data name="SettingsLocalHint.Text" xml:space="preserve"><value>素材无需上传。原文件保持不变。</value></data>
+  <data name="SettingsButton.Content" xml:space="preserve"><value>设置</value></data>
+  <data name="SettingsChooseFolder.Content" xml:space="preserve"><value>更改</value></data>
+  <data name="PreviewPlay.Content" xml:space="preserve"><value>播放 / 暂停</value></data>
+  <data name="PreviewPosition" xml:space="preserve"><value>播放位置</value></data>
 </root>

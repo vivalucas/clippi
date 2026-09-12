@@ -5,131 +5,262 @@ import AVKit
 
 struct MainView: View {
     @StateObject private var viewModel = MainViewModel()
-    @State private var workspace: Workspace = .correction
+    @State private var showingSettings = false
+    @State private var workspace: Workspace = .tools
+    @AppStorage("appearance") private var appearance = "system"
 
-    private enum Workspace: String, CaseIterable {
-        case correction
-        case otherTools
+    private enum Workspace { case tools, correction, audio }
 
-        var title: String {
-            switch self {
-            case .correction: return L10n.string("workspace.correction")
-            case .otherTools: return L10n.string("workspace.otherTools")
-            }
+    private var pageTitle: String {
+        showingSettings ? L10n.string("settings.page") : workspace == .correction ? L10n.string("workspace.correction") : workspace == .audio ? L10n.string("nav.audio") : viewModel.selectedOperation.title
+    }
+
+    private var unavailableReason: String? {
+        guard workspace != .correction, let info = viewModel.fileInfo else { return nil }
+        if (viewModel.selectedOperation == .extractAudio || viewModel.selectedOperation == .removeAudio) && !info.hasAudio {
+            return L10n.string("error.noAudioTrack")
+        }
+        if (viewModel.selectedOperation == .scale || viewModel.selectedOperation == .removeAudio) && info.width == 0 {
+            return L10n.string("error.noVideoTrack")
+        }
+        return nil
+    }
+
+    private func symbol(_ operation: MainViewModel.OperationType) -> String {
+        switch operation {
+        case .trim: return "scissors"
+        case .convert: return "arrow.triangle.2.circlepath"
+        case .scale: return "arrow.up.left.and.arrow.down.right"
+        case .extractAudio: return "waveform"
+        case .removeAudio: return "speaker.slash"
         }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(L10n.string("app.name"))
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Picker("", selection: $workspace) {
-                    ForEach(Workspace.allCases, id: \.self) { item in
-                        Text(item.title).tag(item)
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 24) {
+                HStack(spacing: 10) {
+                    Image("BrandMark")
+                        .resizable().interpolation(.high).scaledToFit()
+                        .frame(width: 38, height: 38).accessibilityHidden(true)
+                    Text("Clippi").font(.system(size: 21, weight: .semibold))
+                }.padding(.horizontal, 10).padding(.top, 12)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(L10n.string("nav.tools")).font(.caption).foregroundStyle(.secondary)
+                        .padding(.horizontal, 12).padding(.bottom, 6)
+                    ForEach([MainViewModel.OperationType.trim, .convert, .scale], id: \.self) { operation in
+                        navigationRow(operation.title, icon: symbol(operation), selected: !showingSettings && workspace == .tools && viewModel.selectedOperation == operation) {
+                            if workspace == .correction { viewModel.useSelectedMedia() }
+                            showingSettings = false
+                            workspace = .tools
+                            if viewModel.selectedOperation != operation { viewModel.selectedOperation = operation }
+                        }
+                    }
+                    navigationRow(L10n.string("workspace.correction"), icon: "rotate.right", selected: !showingSettings && workspace == .correction) {
+                        if workspace != .correction { viewModel.useSourceForCorrection() }
+                        showingSettings = false
+                        workspace = .correction
+                    }
+                    navigationRow(L10n.string("nav.audio"), icon: "waveform", selected: !showingSettings && workspace == .audio) {
+                        if workspace == .correction { viewModel.useSelectedMedia() }
+                        showingSettings = false
+                        workspace = .audio
+                        if viewModel.selectedOperation != .extractAudio && viewModel.selectedOperation != .removeAudio {
+                            viewModel.selectedOperation = .extractAudio
+                        }
+                    }
+                }.disabled(viewModel.isProcessing || viewModel.isImporting)
+                Spacer()
+                Button {
+                    showingSettings = true
+                } label: {
+                    Label(L10n.string("settings.page"), systemImage: "gearshape")
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                        .foregroundStyle(showingSettings ? Color.accentColor : Color.primary)
+                        .background(showingSettings ? Color.accentColor.opacity(0.10) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                }.buttonStyle(.plain).keyboardShortcut(",", modifiers: .command)
+                    .disabled(viewModel.isProcessing || viewModel.isImporting)
+            }
+            .padding(14).frame(width: 190)
+            .background(Color("BrandSidebar"))
+            Divider()
+            VStack(spacing: 0) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(pageTitle)
+                            .font(.system(size: 22, weight: .semibold))
+                        Text(L10n.string(showingSettings ? "settings.subtitle" : workspace == .correction ? "workspace.correctionHint" : "workspace.toolHint"))
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if !showingSettings {
+                    if workspace == .correction {
+                        Menu {
+                            Button(L10n.string("correction.addFiles"), action: selectMediaFiles)
+                            Button(L10n.string("correction.addFolder"), action: selectMediaFolder)
+                            Divider()
+                            Button(L10n.string("correction.clear"), role: .destructive) { viewModel.clearMedia() }
+                        } label: { Label(L10n.string("correction.addFiles"), systemImage: "plus") }
+                    } else {
+                        Button(action: selectSourceFile) {
+                            Label(L10n.string(viewModel.fileInfo == nil ? "correction.addFiles" : "source.replace"), systemImage: "plus")
+                        }.keyboardShortcut("o")
+                    }
                     }
                 }
-                .labelsHidden()
-                .frame(width: 150)
-                .disabled(viewModel.isProcessing)
-
-                Spacer()
-
-                if workspace == .correction {
-                    Button(L10n.string("correction.addFiles"), systemImage: "doc.badge.plus") { selectMediaFiles() }
-                        .disabled(viewModel.isProcessing || viewModel.isImporting)
-                    Button(L10n.string("correction.addFolder"), systemImage: "folder.badge.plus") { selectMediaFolder() }
-                        .disabled(viewModel.isProcessing || viewModel.isImporting)
-                    Button(L10n.string("correction.clear")) { viewModel.clearMedia() }
-                        .disabled(viewModel.mediaItems.isEmpty || viewModel.isProcessing)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            Divider()
-
-            if workspace == .correction {
-                correctionWorkspace
-            } else {
-                legacyWorkspace
-            }
+                .disabled(viewModel.isProcessing || viewModel.isImporting)
+                .padding(24)
+                Divider()
+                if showingSettings { settingsPage } else if workspace == .correction { correctionWorkspace } else { toolWorkspace }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color("BrandCanvas"))
         }
-        .frame(minWidth: 820, minHeight: 620)
+        .accentColor(Color("BrandAccent"))
+        .preferredColorScheme(appearance == "light" ? .light : appearance == "dark" ? .dark : nil)
+        .frame(minWidth: 1060, minHeight: 700)
         .alert(L10n.string("error.title"), isPresented: $viewModel.showError) {
             if !viewModel.errorDetails.isEmpty {
                 Button(L10n.string("error.copyDetails")) { viewModel.copyErrorDetailsToPasteboard() }
             }
             Button(L10n.string("ok")) {}
-        } message: {
-            Text(viewModel.errorMessage)
+        } message: { Text(viewModel.errorMessage) }
+    }
+
+    private var settingsPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Label(L10n.string("appearance.title"), systemImage: "circle.lefthalf.filled").font(.headline)
+                    Picker(L10n.string("appearance.title"), selection: $appearance) {
+                        Text(L10n.string("appearance.system")).tag("system")
+                        Text(L10n.string("appearance.light")).tag("light")
+                        Text(L10n.string("appearance.dark")).tag("dark")
+                    }.labelsHidden().pickerStyle(.segmented)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(24).background(Color("BrandSurface"), in: RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .leading, spacing: 16) {
+                    Label(L10n.string("settings.export"), systemImage: "folder").font(.headline)
+                    Text(viewModel.defaultOutputDirectory.isEmpty ? L10n.string("settings.sourceFolder") : viewModel.defaultOutputDirectory)
+                        .lineLimit(2).truncationMode(.middle).textSelection(.enabled)
+                    Text(L10n.string("settings.exportHint")).font(.callout).foregroundStyle(.secondary)
+                    HStack {
+                        Button(L10n.string("correction.change")) {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.canCreateDirectories = true
+                            if panel.runModal() == .OK, let url = panel.url { viewModel.defaultOutputDirectory = url.path }
+                        }
+                        if !viewModel.defaultOutputDirectory.isEmpty {
+                            Button(L10n.string("settings.restore")) { viewModel.defaultOutputDirectory = "" }
+                        }
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(24).background(Color("BrandSurface"), in: RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Clippi").font(.headline)
+                    Label(L10n.string("nav.local"), systemImage: "lock.shield")
+                    Text(L10n.string("settings.localHint"))
+                }.font(.callout).foregroundStyle(.secondary).padding(.horizontal, 4)
+            }.frame(maxWidth: 680, alignment: .leading).padding(28)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
 
-    private var legacyWorkspace: some View {
-        VStack(spacing: 16) {
-            if let gpu = viewModel.gpuInfo {
-                HStack {
-                    Spacer()
-                    Label(gpu.encoder ?? L10n.string("encoder.software"), systemImage: "gpu")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
+    private func navigationRow(_ title: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 11)
+                .foregroundStyle(selected ? Color.accentColor : Color.primary)
+                .background(selected ? Color.accentColor.opacity(0.10) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain)
+    }
 
-            if let fileInfo = viewModel.fileInfo {
-                FileInfoCard(fileInfo: fileInfo)
-            } else {
-                DropAreaView(onDrop: { url in
-                    viewModel.probeFile(at: url)
-                })
-            }
-
-            Picker(L10n.string("operation.label"), selection: $viewModel.selectedOperation) {
-                ForEach(MainViewModel.OperationType.allCases, id: \.self) { type in
-                    Text(type.title).tag(type)
-                }
-            }
-            .pickerStyle(.segmented)
-            .disabled(viewModel.isProcessing)
-
-            operationControls
-                .disabled(viewModel.isProcessing)
-
-            HStack {
-                TextField(L10n.string("output.path"), text: $viewModel.outputPath)
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(viewModel.isProcessing)
-
-                Button(L10n.string("choose.ellipsis")) {
-                    selectOutputPath()
-                }
-                .disabled(viewModel.isProcessing)
-            }
-
-            if viewModel.isProcessing {
-                VStack {
-                    ProgressView(value: viewModel.progress / 100) {
-                        Text(viewModel.statusMessage)
+    private var toolWorkspace: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let info = viewModel.fileInfo {
+                        if info.width > 0 {
+                            VideoCorrectionPreview(item: MainViewModel.MediaItem(info: info))
+                                .id(info.path).frame(height: 260).frame(maxWidth: .infinity)
+                                .background(.black, in: RoundedRectangle(cornerRadius: 14))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        FileInfoCard(fileInfo: info)
+                    } else {
+                        DropAreaView(onDrop: viewModel.probeFile)
+                            .disabled(viewModel.isImporting || viewModel.isProcessing)
                     }
-                    .progressViewStyle(.linear)
-
-                    Button(L10n.string("cancel")) {
-                        viewModel.cancelProcessing()
+                    if viewModel.isImporting { ProgressView().frame(maxWidth: .infinity) }
+                    if viewModel.fileInfo != nil {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if workspace == .audio {
+                            Picker(L10n.string("nav.audio"), selection: $viewModel.selectedOperation) {
+                                Text(L10n.string("operation.extractAudio")).tag(MainViewModel.OperationType.extractAudio)
+                                Text(L10n.string("operation.removeAudio")).tag(MainViewModel.OperationType.removeAudio)
+                            }.pickerStyle(.segmented)
+                        }
+                        Text(L10n.string("settings.title")).font(.headline)
+                        operationControls
+                        if let reason = unavailableReason {
+                            Label(reason, systemImage: "info.circle").font(.callout).foregroundStyle(.secondary)
+                        }
                     }
-                    .foregroundColor(.red)
-                }
-            } else {
-                Button(L10n.string("start.processing")) {
-                    viewModel.startProcessing()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.fileInfo == nil)
+                    .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color("BrandSurface"), in: RoundedRectangle(cornerRadius: 14))
+                    .disabled(viewModel.isProcessing || viewModel.isImporting)
+                    }
+                }.padding(24)
             }
+            .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                guard !viewModel.isProcessing, !viewModel.isImporting, let provider = providers.first else { return false }
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
+                    guard let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                    DispatchQueue.main.async { viewModel.probeFile(at: url) }
+                }
+                return true
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "folder").foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.string("correction.outputTo")).font(.caption).foregroundStyle(.secondary)
+                        Text(viewModel.outputPath.isEmpty ? (viewModel.defaultOutputDirectory.isEmpty ? L10n.string("output.automatic") : viewModel.defaultOutputDirectory) : viewModel.outputPath)
+                            .lineLimit(1).truncationMode(.middle).help(viewModel.outputPath)
+                    }
+                    Button(L10n.string("correction.change"), action: selectOutputPath)
+                        .disabled(viewModel.fileInfo == nil || viewModel.isProcessing)
+                    Spacer(minLength: 16)
+                    if viewModel.isProcessing {
+                        Button(L10n.string("cancel")) { viewModel.cancelProcessing() }
+                    } else {
+                        Button(L10n.string("export.start")) { viewModel.startProcessing() }
+                            .buttonStyle(.borderedProminent).controlSize(.large)
+                            .disabled(viewModel.fileInfo == nil || viewModel.isImporting || unavailableReason != nil)
+                    }
+                }
+                if viewModel.isProcessing { ProgressView(value: viewModel.progress, total: 100) }
+                if !viewModel.statusMessage.isEmpty {
+                    HStack {
+                        Text(viewModel.statusMessage).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        if let completedPath = viewModel.completedOutputPath, !viewModel.isProcessing {
+                            Button(L10n.string("export.reveal")) {
+                                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: completedPath)])
+                            }.font(.caption)
+                        }
+                    }
+                }
+            }.padding(20).background(Color("BrandSurface"))
         }
-        .padding()
+    }
+
+    private func selectSourceFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.movie, .video, .audio]
+        if panel.runModal() == .OK, let url = panel.url { viewModel.probeFile(at: url) }
     }
 
     @ViewBuilder
@@ -141,15 +272,15 @@ struct MainView: View {
                 onChooseFiles: selectMediaFiles,
                 onChooseFolder: selectMediaFolder
             )
-            .padding(20)
+            .padding(24)
         } else {
             VStack(spacing: 0) {
                 HSplitView {
                     correctionList
-                        .frame(minWidth: 300, idealWidth: 350, maxWidth: 430)
+                        .frame(minWidth: 240, idealWidth: 260, maxWidth: 330)
 
                     correctionEditor
-                        .frame(minWidth: 460)
+                        .frame(minWidth: 430)
                 }
 
                 Divider()
@@ -190,7 +321,7 @@ struct MainView: View {
                         .disabled(viewModel.isProcessing)
 
                         Image(systemName: "film")
-                            .frame(width: 46, height: 34)
+                            .frame(width: 32, height: 30)
                             .background(Color.secondary.opacity(0.12))
                             .cornerRadius(5)
 
@@ -216,6 +347,8 @@ struct MainView: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(Color("BrandCanvas"))
         }
     }
 
@@ -259,7 +392,7 @@ struct MainView: View {
                         Spacer()
                     }
                 }
-                .padding(14)
+                .padding(20)
             }
         } else {
             Text(L10n.string("correction.selectMaterial")).foregroundColor(.secondary)
@@ -270,7 +403,7 @@ struct MainView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(L10n.string("correction.outputTo")).fontWeight(.semibold)
-                Text(viewModel.correctionOutputDirectory?.path ?? L10n.string("correction.outputDefault"))
+                Text(viewModel.correctionOutputDirectory?.path ?? (viewModel.defaultOutputDirectory.isEmpty ? L10n.string("correction.outputDefault") : viewModel.defaultOutputDirectory))
                     .font(.caption).foregroundColor(.secondary).lineLimit(1)
             }
             Button(L10n.string("correction.change")) { selectCorrectionOutputFolder() }
@@ -282,12 +415,12 @@ struct MainView: View {
             } else {
                 Text(L10n.format("correction.pending", viewModel.pendingCorrectionCount))
                     .font(.caption).foregroundColor(.secondary)
-                Button(L10n.string("correction.start"), systemImage: "play.fill") { viewModel.startCorrectionQueue() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.pendingCorrectionCount == 0)
+                Button(L10n.string("export.start")) { viewModel.startCorrectionQueue() }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .disabled(viewModel.pendingCorrectionCount == 0 || viewModel.isImporting)
             }
         }
-        .padding(14)
+        .padding(20).background(Color("BrandSurface"))
     }
 
     private func correctionStatus(_ item: MainViewModel.MediaItem) -> String {
@@ -368,6 +501,7 @@ struct MainView: View {
             FormatControlsView(outputFormat: $viewModel.outputFormat)
         case .scale:
             ScaleControlsView(resolution: $viewModel.targetResolution)
+            Text(L10n.string("scale.hint")).font(.caption).foregroundStyle(.secondary)
         case .extractAudio:
             AudioFormatControlsView(audioFormat: $viewModel.audioFormat)
         case .removeAudio:
@@ -401,7 +535,7 @@ struct CorrectionDropArea: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: 12)
-            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8]))
+            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5]))
             .foregroundColor(isTargeted ? .accentColor : .secondary)
             .background(RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.04)))
             .overlay {
@@ -442,51 +576,87 @@ struct VideoCorrectionPreview: View {
     @State private var previewUnavailable = false
     @State private var fallbackImage: NSImage?
     @State private var fallbackPath: String?
+    @State private var position: Double = 0
+    @State private var isPlaying = false
+    @State private var isSeeking = false
+    private let playbackClock = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        ZStack {
-            if let fallbackImage {
-                Image(nsImage: fallbackImage)
-                    .resizable()
-                    .scaledToFit()
+        VStack(spacing: 0) {
+            GeometryReader { geometry in
+                let quarterTurn = item.correction.rotationDegrees % 180 != 0
+                ZStack {
+                    Group {
+                        if let fallbackImage {
+                            Image(nsImage: fallbackImage).resizable().scaledToFit()
+                        } else {
+                            PlaybackSurface(player: player)
+                        }
+                    }
+                    .frame(width: quarterTurn ? geometry.size.height : geometry.size.width,
+                           height: quarterTurn ? geometry.size.width : geometry.size.height)
                     .rotationEffect(.degrees(Double(item.correction.rotationDegrees)))
                     .scaleEffect(x: item.correction.flipHorizontal ? -1 : 1,
                                  y: item.correction.flipVertical ? -1 : 1)
-                    .animation(.easeInOut(duration: 0.16), value: item.correction)
-            } else {
-                VideoPlayer(player: player)
-                    .rotationEffect(.degrees(Double(item.correction.rotationDegrees)))
-                    .scaleEffect(x: item.correction.flipHorizontal ? -1 : 1,
-                                 y: item.correction.flipVertical ? -1 : 1)
-                    .animation(.easeInOut(duration: 0.16), value: item.correction)
+                    if previewUnavailable {
+                        Text(L10n.string("correction.preview.unavailable"))
+                            .font(.caption).foregroundStyle(.white).padding(12)
+                    }
+                }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
             }
-            if previewUnavailable {
-                Label(L10n.string("correction.preview.unavailable"), systemImage: "exclamationmark.triangle")
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 8))
+            .aspectRatio(previewAspectRatio, contentMode: .fit)
+            .background(.black)
+            if fallbackImage == nil && !previewUnavailable {
+                HStack(spacing: 10) {
+                    Button {
+                        if isPlaying { player.pause() }
+                        else {
+                            if position >= item.info.duration - 0.05 { player.seek(to: .zero) }
+                            player.play()
+                        }
+                        isPlaying.toggle()
+                    } label: {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    }.buttonStyle(.plain)
+                        .accessibilityLabel(L10n.string(isPlaying ? "preview.pause" : "preview.play"))
+                    Slider(value: $position, in: 0...max(item.info.duration, 0.01), onEditingChanged: { editing in
+                        isSeeking = editing
+                        if !editing { player.seek(to: CMTime(seconds: position, preferredTimescale: 600)) }
+                    }) { Text(L10n.string("preview.position")) }.labelsHidden()
+                    Text(String(format: "%02d:%02d", Int(position) / 60, Int(position) % 60))
+                        .font(.caption.monospacedDigit())
+                }.padding(10).background(Color("BrandSurface"))
             }
         }
-        .background(Color.black)
-        .aspectRatio(previewAspectRatio, contentMode: .fit)
-        .task(id: item.id) {
+        .onReceive(playbackClock) { _ in
+            let seconds = player.currentTime().seconds
+            if !isSeeking && seconds.isFinite { position = min(max(seconds, 0), max(item.info.duration, 0)) }
+            isPlaying = player.rate > 0
+        }
+        .task(id: item.info.path) {
             player.pause()
+            position = 0
+            isPlaying = false
             fallbackImage = nil
             if let fallbackPath { try? FileManager.default.removeItem(atPath: fallbackPath) }
             fallbackPath = nil
             let asset = AVURLAsset(url: URL(fileURLWithPath: item.info.path))
             let playable = (try? await asset.load(.isPlayable)) ?? false
+            guard !Task.isCancelled else { return }
             if playable {
                 previewUnavailable = false
                 player.replaceCurrentItem(with: AVPlayerItem(asset: asset))
             } else {
                 player.replaceCurrentItem(with: nil)
                 let path = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("clippi-preview-\(item.id.uuidString).jpg").path
+                    .appendingPathComponent("clippi-preview-\(UUID().uuidString).jpg").path
                 let generated = await Task.detached {
                     ClippiFFI.generatePreviewImage(inputPath: item.info.path, outputPath: path)
                 }.value
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    try? FileManager.default.removeItem(atPath: path)
+                    return
+                }
                 fallbackPath = generated ? path : nil
                 fallbackImage = generated ? NSImage(contentsOfFile: path) : nil
                 previewUnavailable = fallbackImage == nil
@@ -507,6 +677,32 @@ struct VideoCorrectionPreview: View {
     }
 }
 
+private struct PlaybackSurface: NSViewRepresentable {
+    let player: AVPlayer
+    func makeNSView(context: Context) -> PlaybackLayerView {
+        let view = PlaybackLayerView()
+        view.videoLayer.player = player
+        return view
+    }
+    func updateNSView(_ view: PlaybackLayerView, context: Context) { view.videoLayer.player = player }
+    static func dismantleNSView(_ view: PlaybackLayerView, coordinator: ()) { view.videoLayer.player = nil }
+}
+
+private final class PlaybackLayerView: NSView {
+    let videoLayer = AVPlayerLayer()
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        videoLayer.videoGravity = .resizeAspect
+        layer = videoLayer
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func layout() {
+        super.layout()
+        videoLayer.frame = bounds
+    }
+}
+
 private extension Int {
     var normalizedRotation: Int { ((self % 360) + 360) % 360 }
 }
@@ -517,8 +713,8 @@ struct DropAreaView: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: 12)
-            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8]))
-            .foregroundColor(isDragOver ? .accentColor : .secondary)
+            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5]))
+            .foregroundColor(isDragOver ? .accentColor : Color.secondary.opacity(0.3))
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(isDragOver ? Color.accentColor.opacity(0.1) : Color.clear)
@@ -533,9 +729,8 @@ struct DropAreaView: View {
                         .font(.title3)
                         .foregroundColor(.secondary)
 
-                    Text(L10n.string("drop.secondary"))
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
+                    Button(L10n.string("source.choose"), action: selectFile)
+                        .buttonStyle(.borderedProminent)
                 }
             )
             .frame(height: 200)
@@ -543,9 +738,7 @@ struct DropAreaView: View {
                 handleDrop(providers: providers)
                 return true
             }
-            .onTapGesture {
-                selectFile()
-            }
+
     }
 
     private func handleDrop(providers: [NSItemProvider]) {
@@ -574,39 +767,20 @@ struct FileInfoCard: View {
     let fileInfo: MainViewModel.FileInfo
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "video")
-                    .font(.title2)
-                Text(URL(fileURLWithPath: fileInfo.path).lastPathComponent)
-                    .font(.headline)
-            }
-
-            Divider()
-
-            Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 4) {
-                GridRow {
-                    Label(L10n.string("file.resolution"), systemImage: "aspectratio")
-                    Text("\(fileInfo.width) x \(fileInfo.height)")
+        VStack(alignment: .leading, spacing: 10) {
+            Label(URL(fileURLWithPath: fileInfo.path).lastPathComponent, systemImage: fileInfo.width > 0 ? "film" : "waveform")
+                .font(.headline).lineLimit(1).truncationMode(.middle).help(fileInfo.path)
+            HStack(spacing: 20) {
+                if fileInfo.width > 0 {
+                    Label("\(fileInfo.width) × \(fileInfo.height)", systemImage: "aspectratio")
                 }
-                GridRow {
-                    Label(L10n.string("file.duration"), systemImage: "clock")
-                    Text(formatDuration(fileInfo.duration))
-                }
-                GridRow {
-                    Label(L10n.string("file.codec"), systemImage: "film")
-                    Text(fileInfo.codec)
-                }
-                GridRow {
-                    Label(L10n.string("file.frameRate"), systemImage: "speedometer")
-                    Text(String(format: "%.2f fps", fileInfo.frameRate))
-                }
-            }
-            .font(.system(.body, design: .monospaced))
+                Label(formatDuration(fileInfo.duration), systemImage: "clock")
+                Text(fileInfo.codec.uppercased())
+                if fileInfo.frameRate > 0 { Text(String(format: "%.2f fps", fileInfo.frameRate)) }
+            }.font(.caption).foregroundStyle(.secondary)
         }
-        .padding()
-        .background(Color(.controlBackgroundColor))
-        .cornerRadius(8)
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color("BrandSurface"), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func formatDuration(_ seconds: Double) -> String {
@@ -641,6 +815,12 @@ struct TrimControlsView: View {
                 Text(L10n.string("trim.seconds.unit"))
             }
 
+            if duration > 0 {
+                Slider(value: $startTime, in: 0...duration) { Text(L10n.string("trim.startTime")) }
+                    .onChange(of: startTime) { value in if value >= endTime { endTime = min(duration, value + 0.1) } }
+                Slider(value: $endTime, in: 0...duration) { Text(L10n.string("trim.endTime")) }
+                    .onChange(of: endTime) { value in if value <= startTime { startTime = max(0, value - 0.1) } }
+            }
             Toggle(L10n.string("trim.fastMode"), isOn: $fastMode)
         }
     }

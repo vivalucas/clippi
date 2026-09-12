@@ -6,6 +6,9 @@ Clippi is a cross-platform native desktop video processing tool. It uses ffmpeg 
 
 ## Features
 
+- Five tool entries: Trim, Convert, Resize, Rotate & Flip, and Audio
+- A dedicated Settings page with System / Light / Dark appearance and a persistent default export folder
+
 - Drag or choose one or more media files, or import the current level of a folder
 - Read resolution, duration, codec, frame rate, and bitrate automatically
 - Video trimming: fast mode (stream copy) and precise mode (re-encode)
@@ -34,7 +37,7 @@ Official builds are distributed through GitHub Releases:
 
 > WinUI 3 apps cannot be compiled into a true single-file executable; the portable build is a self-extractor that unpacks once, after which you run `Clippi.exe` from the chosen folder.
 
-Release builds bundle ffmpeg / ffprobe with the app, so users do not need to install ffmpeg separately. Development environments can also download local binaries through `scripts/download_ffmpeg.*`. The Rust core library searches bundled app paths first, then `CLIPPI_FFMPEG_DIR`, and finally the system `PATH`.
+Release builds bundle ffmpeg / ffprobe with the app, so users do not need to install ffmpeg separately. Development environments can also download local binaries through `scripts/download_ffmpeg.*`. The Rust core library searches `CLIPPI_FFMPEG_DIR` first, then bundled app paths, and finally the system `PATH`.
 
 ## Tech Stack
 

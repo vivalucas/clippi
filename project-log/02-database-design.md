@@ -15,3 +15,10 @@
 | 日期 | 变更内容 | 原因 |
 |------|----------|------|
 | 2025-05-14 | 初始版本，标注无数据库 | 项目初始化 |
+
+
+## 2026-09-12 界面重设计同步
+
+~~无需持久化存储；用户偏好优先考虑 SQLite。~~（旧建议被本轮偏好实现替代。）仍无数据库。macOS 使用 UserDefaults 的 appearance、defaultOutputDirectory；Windows 使用 LocalAppData/Clippi 下 appearance.txt、default-output.txt。仅保存外观与默认目录；素材、任务、选择范围不持久化。模型测试使用独立 UserDefaults suite，结束清除，避免修改用户配置。
+
+详见 [本轮综合自查](13-ui-redesign-review.md)。历史阶段描述保留供追溯，以本节为准。

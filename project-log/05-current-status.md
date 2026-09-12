@@ -1,6 +1,24 @@
 # 当前状态
 
-> **最后更新**：2026-09-05
+## v1.2.0 发布推进（2026-09-12，以本节为准）
+
+用户已授权提交 GitHub main 并打新版本 tag。Rust、macOS、Windows、manifest 和安装器版本统一为 1.2.0；本次提交包含界面重设计、自查修复和文档更新。计划以同一提交创建 v1.2.0 tag，触发双平台 GitHub Actions 发布。构建产物是否成功须以 Actions 结果为准；本地 Windows 运行验收仍未完成。
+
+## 任务交接历史（2026-09-12，自查结束时）
+
+**当前任务**：前端重设计后的综合自查、缺陷修复和文档同步。
+**已完成**：五工具入口、独立设置、明暗主题与简化品牌；修复导航状态、裁剪校验、文件夹选择、预览控制条、队列失败恢复；Rust 20 单测、11 FFI 冒烟、8 macOS 模型回归、macOS Debug/Release 构建及实际界面验证。
+**未完成**：Windows 最新代码编译/运行、双端发布包验收、真实 HDR/长视频等扩大测试。
+**下一步建议**：在 Windows x64 执行构建、主题与文件选择/预览/导出回归，然后按发布流程验收产物。
+**风险 / 阻塞**：当前为 macOS，无 Windows/.NET SDK；本轮 Windows 仅静态检查。所有更改仍在工作区，未发布新版本。
+**相关文件**：MainView.swift、MainViewModel.swift、MainWindow.xaml(.cs)、MainViewModel.cs、core/src/task.rs、assets/brand、scripts/test-*；详见 [13 综合自查](13-ui-redesign-review.md)。
+
+## 历史状态快照（保留追溯）
+
+以下 2026-09-05 及更早记录不代表当前工作区验证结果。
+
+
+> ~~**最后更新**：2026-09-05~~（历史快照；当前更新为 2026-09-12）
 > **最后更新人**：AI 开发助手
 > **最近开发日志**：2026-09-05 v1.1.0 素材校正工作区
 > **当前可信度**：Rust 核心严格静态检查、测试和 Release 构建通过；Windows x64 Debug/Release 构建及隐藏启动冒烟通过；含 display matrix 的合成视频变换验证通过；待 macOS 26 arm64 CI 与真实素材双端验收。

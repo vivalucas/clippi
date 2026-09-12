@@ -38,7 +38,6 @@
   <data name="OutputPathBox.Header" xml:space="preserve"><value>Output path</value></data>
   <data name="ChooseOutputButton.Content" xml:space="preserve"><value>Choose...</value></data>
   <data name="CancelButton.Content" xml:space="preserve"><value>Cancel</value></data>
-  <data name="StartButton.Content" xml:space="preserve"><value>Start</value></data>
   <data name="EncoderSoftware" xml:space="preserve"><value>Software encoding</value></data>
   <data name="StatusProcessing" xml:space="preserve"><value>Processing...</value></data>
   <data name="StatusProcessingSpeed" xml:space="preserve"><value> Speed: {0}</value></data>
@@ -105,4 +104,34 @@
   <data name="CorrectionChangeButton.Content" xml:space="preserve"><value>Change</value></data>
   <data name="CorrectionStartButton.Content" xml:space="preserve"><value>Start processing</value></data>
   <data name="CorrectionStopButton.Content" xml:space="preserve"><value>Stop all</value></data>
+  <data name="NavTrim.Content" xml:space="preserve"><value>Trim</value></data>
+  <data name="NavConvert.Content" xml:space="preserve"><value>Convert</value></data>
+  <data name="NavScale.Content" xml:space="preserve"><value>Resize</value></data>
+  <data name="NavExtract.Content" xml:space="preserve"><value>Extract audio</value></data>
+  <data name="NavMute.Content" xml:space="preserve"><value>Remove audio</value></data>
+  <data name="NavCorrection.Content" xml:space="preserve"><value>Rotate &amp; flip</value></data>
+  <data name="LocalProcessing.Text" xml:space="preserve"><value>Processed locally</value></data>
+  <data name="ReplaceSource.Content" xml:space="preserve"><value>Choose media</value></data>
+  <data name="StartButton.Content" xml:space="preserve"><value>Export</value></data>
+  <data name="ToolTitle.Text" xml:space="preserve"><value>Trim</value></data>
+  <data name="NavAudio.Content" xml:space="preserve"><value>Audio</value></data>
+  <data name="AppearancePicker.Header" xml:space="preserve"><value>Appearance</value></data>
+  <data name="AppearanceSystem.Content" xml:space="preserve"><value>System</value></data>
+  <data name="AppearanceLight.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="AppearanceDark.Content" xml:space="preserve"><value>Dark</value></data>
+  <data name="ChooseMediaButton.Content" xml:space="preserve"><value>Choose media</value></data>
+  <data name="ScaleHint.Text" xml:space="preserve"><value>Keep the original aspect ratio within the selected size.</value></data>
+  <data name="StatusReading" xml:space="preserve"><value>Reading media…</value></data>
+  <data name="AppearanceSaveFailed" xml:space="preserve"><value>Appearance changed, but could not save the preference.</value></data>
+  <data name="SettingsTitle.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve"><value>Make Clippi feel right for you</value></data>
+  <data name="SettingsExport.Text" xml:space="preserve"><value>Default export location</value></data>
+  <data name="SettingsSourceFolder" xml:space="preserve"><value>Source folder</value></data>
+  <data name="SettingsExportHint.Text" xml:space="preserve"><value>Applies to new imports and batch exports without a custom folder. Current output paths stay unchanged.</value></data>
+  <data name="SettingsRestore.Content" xml:space="preserve"><value>Restore default</value></data>
+  <data name="SettingsLocalHint.Text" xml:space="preserve"><value>Your media stays on this device. Original files are kept.</value></data>
+  <data name="SettingsButton.Content" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsChooseFolder.Content" xml:space="preserve"><value>Change</value></data>
+  <data name="PreviewPlay.Content" xml:space="preserve"><value>Play / pause</value></data>
+  <data name="PreviewPosition" xml:space="preserve"><value>Playback position</value></data>
 </root>

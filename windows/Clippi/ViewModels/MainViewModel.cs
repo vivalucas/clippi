@@ -79,7 +79,7 @@ namespace Clippi.ViewModels
         }
 
         public string CorrectionOutputDisplay => string.IsNullOrWhiteSpace(CorrectionOutputDirectory)
-            ? L10n.Get("CorrectionOutputDefault")
+            ? (string.IsNullOrWhiteSpace(_defaultOutputDirectory) ? L10n.Get("CorrectionOutputDefault") : _defaultOutputDirectory)
             : CorrectionOutputDirectory;
         public double OverallProgress { get => _overallProgress; private set { _overallProgress = value; OnPropertyChanged(); } }
         public bool IsImportingCorrection
@@ -89,11 +89,13 @@ namespace Clippi.ViewModels
             {
                 _isImportingCorrection = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsNotProcessing));
                 OnPropertyChanged(nameof(CanImportCorrection));
                 OnPropertyChanged(nameof(CanClearCorrection));
+                OnPropertyChanged(nameof(CanStartCorrection));
             }
         }
-        public bool CanImportCorrection => !IsProcessing && !IsImportingCorrection;
+        public bool CanImportCorrection => !IsProcessing && !IsImportingCorrection && !IsProbing;
         public bool CanEditCorrection => !IsProcessing && SelectedMediaItem != null;
         public bool CanClearCorrection => HasCorrectionMedia && CanImportCorrection;
         public int CheckedCount => MediaItems.Count(item => item.IsChecked);
@@ -102,7 +104,7 @@ namespace Clippi.ViewModels
             : CheckedCount == MediaItems.Count ? true : CheckedCount == 0 ? false : null;
         public int PendingCorrectionCount => MediaItems.Count(item => item.IsChecked && item.IsPending);
         public string PendingCorrectionSummary => L10n.Format("CorrectionPendingSummary", PendingCorrectionCount);
-        public bool CanStartCorrection => PendingCorrectionCount > 0 && !IsProcessing;
+        public bool CanStartCorrection => PendingCorrectionCount > 0 && CanImportCorrection;
         public bool HasCorrectionMedia => MediaItems.Count > 0;
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -164,7 +166,7 @@ namespace Clippi.ViewModels
         public string SelectedOperation
         {
             get => _selectedOperation;
-            set { _selectedOperation = value; OnPropertyChanged(); }
+            set { _selectedOperation = value; OnPropertyChanged(); OnPropertyChanged(nameof(OperationUnavailableReason)); }
         }
 
         public double StartTime
@@ -217,6 +219,7 @@ namespace Clippi.ViewModels
                 _isProcessing = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartCorrection));
+                OnPropertyChanged(nameof(IsNotProcessing));
                 OnPropertyChanged(nameof(CanImportCorrection));
                 OnPropertyChanged(nameof(CanEditCorrection));
                 OnPropertyChanged(nameof(CanClearCorrection));
@@ -256,8 +259,23 @@ namespace Clippi.ViewModels
         public bool HasNoFile => !HasFile;
         public bool HasErrorDetails => !string.IsNullOrWhiteSpace(ErrorDetails);
 
+        private static string DefaultOutputPreferencePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clippi", "default-output.txt");
+        private string _defaultOutputDirectory = "";
+        public string DefaultOutputDisplay => string.IsNullOrWhiteSpace(_defaultOutputDirectory) ? L10n.Get("SettingsSourceFolder") : _defaultOutputDirectory;
+
+        public void SetDefaultOutputDirectory(string path)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(DefaultOutputPreferencePath)!);
+            File.WriteAllText(DefaultOutputPreferencePath, path);
+            _defaultOutputDirectory = path;
+            OnPropertyChanged(nameof(DefaultOutputDisplay));
+            OnPropertyChanged(nameof(CorrectionOutputDisplay));
+        }
+
         public MainViewModel()
         {
+            try { if (File.Exists(DefaultOutputPreferencePath)) _defaultOutputDirectory = File.ReadAllText(DefaultOutputPreferencePath).Trim(); }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { }
             _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
             _ = Task.Run(() =>
             {
@@ -336,6 +354,7 @@ namespace Clippi.ViewModels
 
         public async Task ProbeFileAsync(string path)
         {
+            if (!IsNotProcessing) return;
             if (!IsSupportedMedia(path))
             {
                 DispatchToUi(() =>
@@ -346,8 +365,12 @@ namespace Clippi.ViewModels
                 return;
             }
 
+            IsProbing = true;
+            StatusMessage = L10n.Get("StatusReading");
+            ProbeResult? result;
             var generation = Interlocked.Increment(ref _probeGeneration);
-            var result = await Task.Run(() => ParseProbeResult(path));
+            try { result = await Task.Run(() => ParseProbeResult(path)); }
+            finally { IsProbing = false; }
             if (generation != _probeGeneration)
                 return;
 
@@ -376,13 +399,29 @@ namespace Clippi.ViewModels
             Bitrate = result.Bitrate;
             HasAudio = result.HasAudio;
 
+            StartTime = 0;
+            Progress = 0;
+            StatusMessage = "";
             EndTime = Duration;
             OutputPath = GenerateOutputPath(result.Path);
+            OnPropertyChanged(nameof(OperationUnavailableReason));
         }
+
+        private bool _isProbing;
+        public bool IsProbing
+        {
+            get => _isProbing;
+            private set { _isProbing = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotProcessing)); OnPropertyChanged(nameof(CanImportCorrection)); OnPropertyChanged(nameof(CanStartCorrection)); }
+        }
+        public string OperationUnavailableReason => !HasFile ? "" :
+            ((SelectedOperation == "extractAudio" || SelectedOperation == "removeAudio") && !HasAudio) ? L10n.Get("ErrorNoAudioTrack") :
+            ((SelectedOperation == "scale" || SelectedOperation == "removeAudio") && Width == 0) ? L10n.Get("ErrorNoVideoTrack") : "";
+
+        public bool IsNotProcessing => !IsProcessing && !IsProbing && !IsImportingCorrection;
 
         public bool StartProcessing()
         {
-            if (!ValidateBeforeStart()) return false;
+            if (!IsNotProcessing || !ValidateBeforeStart()) return false;
 
             IsProcessing = true;
             Progress = 0;
@@ -477,7 +516,7 @@ namespace Clippi.ViewModels
 
         private string GenerateOutputPath(string inputPath)
         {
-            var dir = Path.GetDirectoryName(inputPath) ?? "";
+            var dir = string.IsNullOrWhiteSpace(_defaultOutputDirectory) ? Path.GetDirectoryName(inputPath) ?? "" : _defaultOutputDirectory;
             var name = Path.GetFileNameWithoutExtension(inputPath);
             return UniqueOutputPath(Path.Combine(dir, $"{name}_output.{GetOutputExtension()}"));
         }
@@ -510,7 +549,9 @@ namespace Clippi.ViewModels
         {
             if (!string.IsNullOrEmpty(FilePath))
             {
-                OutputPath = GenerateOutputPath(FilePath);
+                OutputPath = string.IsNullOrWhiteSpace(OutputPath)
+                    ? GenerateOutputPath(FilePath)
+                    : UniqueOutputPath(Path.ChangeExtension(OutputPath, GetOutputExtension()));
             }
         }
 
@@ -554,7 +595,7 @@ namespace Clippi.ViewModels
 
             if (SelectedOperation == "trim")
             {
-                if (StartTime < 0 || EndTime <= StartTime)
+                if (!double.IsFinite(StartTime) || !double.IsFinite(EndTime) || StartTime < 0 || EndTime <= StartTime)
                 {
                     StatusMessage = L10n.Get("ErrorTrimEndAfterStart");
                     return false;
@@ -613,6 +654,7 @@ namespace Clippi.ViewModels
             {
                 using var doc = JsonDocument.Parse(progressJson);
                 var root = doc.RootElement;
+                if (!IsProcessing || !root.TryGetProperty("task_id", out var taskId) || taskId.GetUInt64() != _currentTaskId) return;
 
                 if (root.TryGetProperty("percent", out var percent))
                 {
@@ -832,7 +874,7 @@ namespace Clippi.ViewModels
             foreach (var item in MediaItems) item.TaskId = null;
             var json = JsonSerializer.Serialize(configs);
             var ids = await Task.Run(() => ClippiCore.QueueTasks(json, progressJson =>
-                DispatchToUi(() => UpdateCorrectionProgress(progressJson))));
+                DispatchToUi(() => { if (generation == _correctionQueueGeneration) UpdateCorrectionProgress(progressJson); })));
             if (generation != _correctionQueueGeneration || !IsProcessing)
             {
                 foreach (var id in ids) ClippiCore.CancelTask(id);
@@ -841,6 +883,14 @@ namespace Clippi.ViewModels
             }
             if (ids.Length != configuredTargets.Count)
             {
+                ++_correctionQueueGeneration;
+                foreach (var id in ids) ClippiCore.CancelTask(id);
+                _pendingCorrectionProgress.Clear();
+                foreach (var item in configuredTargets)
+                {
+                    item.Status = CorrectionMediaStatus.Failed;
+                    item.ErrorDetails = L10n.Get("ErrorStartTaskFailed");
+                }
                 IsProcessing = false;
                 StatusMessage = L10n.Get("ErrorStartTaskFailed");
                 return false;
@@ -850,9 +900,10 @@ namespace Clippi.ViewModels
             for (int index = 0; index < ids.Length; index++)
             {
                 configuredTargets[index].TaskId = ids[index];
-                if (_pendingCorrectionProgress.Remove(ids[index], out var pending))
-                    UpdateCorrectionProgress(pending);
+
             }
+            foreach (var id in ids)
+                if (_pendingCorrectionProgress.Remove(id, out var pending)) UpdateCorrectionProgress(pending);
             return true;
         }
 
@@ -912,7 +963,7 @@ namespace Clippi.ViewModels
         private string CorrectionOutputPath(CorrectionMediaItem item)
         {
             var directory = string.IsNullOrWhiteSpace(CorrectionOutputDirectory)
-                ? Path.Combine(Path.GetDirectoryName(item.Path)!, "Clippi-output")
+                ? (string.IsNullOrWhiteSpace(_defaultOutputDirectory) ? Path.Combine(Path.GetDirectoryName(item.Path)!, "Clippi-output") : _defaultOutputDirectory)
                 : CorrectionOutputDirectory!;
             return Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(item.Path)}.mp4");
         }

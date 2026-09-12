@@ -22,24 +22,38 @@ namespace Clippi
     public sealed partial class MainWindow : Window
     {
         public MainViewModel ViewModel { get; } = new();
-        private int _activeWorkspaceIndex;
-        private bool _restoringWorkspace;
+        private readonly DispatcherTimer _previewClock = new() { Interval = TimeSpan.FromMilliseconds(250) };
+        private bool _updatingPreviewPosition;
         private int _previewGeneration;
+        private string? _sourcePreviewPath;
+        private int _previousToolIndex;
+        private bool _loadingAppearance;
         private string? _fallbackPreviewPath;
 
         public MainWindow()
         {
             this.InitializeComponent();
             ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            LoadAppearance();
+            var appIcon = Path.Combine(AppContext.BaseDirectory, "Assets", "Clippi.ico");
+            if (File.Exists(appIcon)) AppWindow.SetIcon(appIcon);
             // MediaPlayerElement only creates its MediaPlayer lazily, so attach our
             // own up front to keep the failure handler wired before any source loads.
             var player = CorrectionPlayer.MediaPlayer ?? new MediaPlayer();
             if (CorrectionPlayer.MediaPlayer is null) CorrectionPlayer.SetMediaPlayer(player);
             player.MediaFailed += OnCorrectionPreviewFailed;
-            AppWindow.Resize(new SizeInt32(1100, 720));
+            _previewClock.Tick += (_, _) => {
+                _updatingPreviewPosition = true;
+                CorrectionSeek.Value = Math.Clamp(player.PlaybackSession.Position.TotalSeconds, 0, CorrectionSeek.Maximum);
+                _updatingPreviewPosition = false;
+            };
+            _previewClock.Start();
+            AppWindow.Resize(new SizeInt32(1200, 820));
             AppWindow.Changed += OnAppWindowChanged;
-            Closed += (_, _) => CleanupFallbackPreview();
+            Closed += (_, _) => { _previewClock.Stop(); player.Dispose(); SourcePlayer.MediaPlayer?.Dispose(); CleanupFallbackPreview(); };
         }
+
+        public string PlaybackPositionLabel => L10n.Get("PreviewPosition");
 
         private Visibility ConvertBoolToVisibility(bool value)
         {
@@ -124,6 +138,12 @@ namespace Clippi
         private void OnCorrectionSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _previewGeneration++;
+            CorrectionPlayButton.IsEnabled = ViewModel.SelectedMediaItem != null;
+            CorrectionSeek.IsEnabled = ViewModel.SelectedMediaItem != null;
+            _updatingPreviewPosition = true;
+            CorrectionSeek.Value = 0;
+            CorrectionSeek.Maximum = Math.Max(0.01, ViewModel.SelectedMediaItem?.Duration ?? 0);
+            _updatingPreviewPosition = false;
             CorrectionPreviewImage.Visibility = Visibility.Collapsed;
             CorrectionPreviewImage.Source = null;
             CorrectionPlayer.Visibility = Visibility.Visible;
@@ -158,6 +178,8 @@ namespace Clippi
                     {
                         _fallbackPreviewPath = path;
                         CorrectionPreviewImage.Source = new BitmapImage(new Uri(path));
+                        CorrectionPlayButton.IsEnabled = false;
+                        CorrectionSeek.IsEnabled = false;
                         CorrectionPreviewImage.Visibility = Visibility.Visible;
                         CorrectionPlayer.Visibility = Visibility.Collapsed;
                         ResizeCorrectionPlayer();
@@ -208,6 +230,23 @@ namespace Clippi
             await dialog.ShowAsync();
         }
 
+        private void OnCorrectionPlayPause(object sender, RoutedEventArgs e)
+        {
+            var player = CorrectionPlayer.MediaPlayer;
+            if (player == null || ViewModel.SelectedMediaItem == null) return;
+            if (player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing) player.Pause();
+            else {
+                if (player.PlaybackSession.Position.TotalSeconds >= CorrectionSeek.Maximum - 0.05) player.PlaybackSession.Position = TimeSpan.Zero;
+                player.Play();
+            }
+        }
+
+        private void OnCorrectionSeekChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            if (!_updatingPreviewPosition && CorrectionPlayer?.MediaPlayer is { } player)
+                player.PlaybackSession.Position = TimeSpan.FromSeconds(e.NewValue);
+        }
+
         private void OnRotateLeft(object sender, RoutedEventArgs e) { ViewModel.RotateSelected(-90); UpdateCorrectionPreviewTransform(); }
         private void OnRotateRight(object sender, RoutedEventArgs e) { ViewModel.RotateSelected(90); UpdateCorrectionPreviewTransform(); }
         private void OnRotate180(object sender, RoutedEventArgs e) { ViewModel.RotateSelected(180); UpdateCorrectionPreviewTransform(); }
@@ -246,24 +285,107 @@ namespace Clippi
             }
         }
 
-        private void OnWorkspaceSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void OnSettingsClick(object sender, RoutedEventArgs e)
         {
-            if (_restoringWorkspace) return;
-            if (ViewModel.IsProcessing && WorkspaceTabs.SelectedIndex != _activeWorkspaceIndex)
+            if (SettingsButton.IsChecked == true)
             {
-                _restoringWorkspace = true;
-                WorkspaceTabs.SelectedIndex = _activeWorkspaceIndex;
-                _restoringWorkspace = false;
-                return;
+                CorrectionPlayer.MediaPlayer?.Pause();
+                SourcePlayer.MediaPlayer?.Pause();
+                ToolNavigation.SelectedIndex = -1;
+                ToolsWorkspace.Visibility = Visibility.Collapsed;
+                CorrectionWorkspace.Visibility = Visibility.Collapsed;
+                SettingsWorkspace.Visibility = Visibility.Visible;
             }
-            _activeWorkspaceIndex = WorkspaceTabs.SelectedIndex;
+            else { ToolNavigation.SelectedIndex = _previousToolIndex; }
         }
+
+        private async void OnChooseDefaultOutput(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var folder = await CreateFolderPicker().PickSingleFolderAsync();
+                if (folder != null) { ViewModel.SetDefaultOutputDirectory(folder.Path); SettingsMessage.Text = ""; }
+            }
+            catch (Exception ex) { SettingsMessage.Text = ex.Message; }
+        }
+
+        private void OnRestoreDefaultOutput(object sender, RoutedEventArgs e)
+        {
+            try { ViewModel.SetDefaultOutputDirectory(""); SettingsMessage.Text = ""; }
+            catch (Exception ex) { SettingsMessage.Text = ex.Message; }
+        }
+
+        private static string AppearancePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clippi", "appearance.txt");
+
+        private void LoadAppearance()
+        {
+            _loadingAppearance = true;
+            string value = "system";
+            try { if (File.Exists(AppearancePath)) value = File.ReadAllText(AppearancePath).Trim(); } catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { }
+            AppearancePicker.SelectedIndex = value == "light" ? 1 : value == "dark" ? 2 : 0;
+            _loadingAppearance = false;
+        }
+
+        private void OnAppearanceChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (RootLayout == null || AppearancePicker.SelectedItem is not ComboBoxItem item) return;
+            var value = item.Tag?.ToString() ?? "system";
+            RootLayout.RequestedTheme = value == "light" ? ElementTheme.Light : value == "dark" ? ElementTheme.Dark : ElementTheme.Default;
+            if (_loadingAppearance) return;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(AppearancePath)!);
+                File.WriteAllText(AppearancePath, value);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            { SettingsMessage.Text = L10n.Get("AppearanceSaveFailed"); }
+        }
+
+        private async void OnToolNavigationChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ToolsWorkspace == null || CorrectionWorkspace == null || OperationSelector == null || AudioActionSelector == null) return;
+            var index = ToolNavigation.SelectedIndex;
+            if (index < 0) return;
+            SettingsWorkspace.Visibility = Visibility.Collapsed;
+            SettingsButton.IsChecked = false;
+            var previous = _previousToolIndex;
+            _previousToolIndex = index;
+            ToolsWorkspace.Visibility = index == 3 ? Visibility.Collapsed : Visibility.Visible;
+            CorrectionWorkspace.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
+            CorrectionPlayer.MediaPlayer?.Pause();
+            SourcePlayer.MediaPlayer?.Pause();
+            AudioActionSelector.Visibility = index == 4 ? Visibility.Visible : Visibility.Collapsed;
+            if (index != 3 && index >= 0)
+            {
+                var operation = index == 4 ? 3 + AudioActionSelector.SelectedIndex : index;
+                if (OperationSelector.SelectedIndex != operation) OperationSelector.SelectedIndex = operation;
+                ToolTitle.Text = (ToolNavigation.SelectedItem as ListBoxItem)?.Content?.ToString() ?? "Clippi";
+                if (previous == 3 && ViewModel.SelectedMediaItem is { } selected && selected.Path != ViewModel.FilePath)
+                {
+                    await ViewModel.ProbeFileAsync(selected.Path);
+                    UpdateUI();
+                }
+            }
+            else if (index == 3 && previous != 3 && ViewModel.HasFile && ViewModel.Width > 0)
+            {
+                await ViewModel.ImportCorrectionFilesAsync(new[] { ViewModel.FilePath });
+                ViewModel.SelectedMediaItem = ViewModel.MediaItems.FirstOrDefault(item => item.Path == ViewModel.FilePath);
+            }
+        }
+
+        private void OnAudioActionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (OperationSelector == null || AudioActionSelector == null || ToolNavigation?.SelectedIndex != 4) return;
+            OperationSelector.SelectedIndex = 3 + AudioActionSelector.SelectedIndex;
+        }
+
+        private async void OnChooseMediaClick(object sender, RoutedEventArgs e) => await ChooseMediaAsync();
 
         private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
         {
             if (!args.DidSizeChange) return;
-            var width = Math.Max(sender.Size.Width, 900);
-            var height = Math.Max(sender.Size.Height, 620);
+            var width = Math.Max(sender.Size.Width, 1140);
+            var height = Math.Max(sender.Size.Height, 740);
             if (width != sender.Size.Width || height != sender.Size.Height)
                 sender.Resize(new SizeInt32(width, height));
         }
@@ -301,6 +423,7 @@ namespace Clippi
 
         private async void OnFileDrop(object sender, DragEventArgs e)
         {
+            if (ViewModel.IsProcessing) return;
             try
             {
                 if (e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -325,8 +448,11 @@ namespace Clippi
             e.DragUIOverride.Caption = L10n.Get("DragCaption");
         }
 
-        private async void OnSelectFileTapped(object sender, TappedRoutedEventArgs e)
+        private async void OnSelectFileTapped(object sender, TappedRoutedEventArgs e) => await ChooseMediaAsync();
+
+        private async Task ChooseMediaAsync()
         {
+            if (!ViewModel.IsNotProcessing) return;
             try
             {
                 var picker = new FileOpenPicker();
@@ -363,6 +489,7 @@ namespace Clippi
         private void OnOperationChanged(object sender, SelectionChangedEventArgs e)
         {
             var index = (sender as RadioButtons)?.SelectedIndex ?? 0;
+            if (TrimPanel == null || FormatPanel == null || ScalePanel == null || AudioPanel == null || RemoveAudioText == null) return;
 
             TrimPanel.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
             FormatPanel.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
@@ -426,12 +553,7 @@ namespace Clippi
         {
             try
             {
-                var picker = new FolderPicker();
-                picker.SuggestedStartLocation = PickerLocationId.VideosLibrary;
-
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
+                var picker = CreateFolderPicker();
                 var folder = await picker.PickSingleFolderAsync();
                 if (folder != null)
                 {
@@ -460,11 +582,19 @@ namespace Clippi
         private void UpdateUI()
         {
             StartButton.Visibility = ViewModel.HasFile ? Visibility.Visible : Visibility.Collapsed;
+            StartButton.IsEnabled = ViewModel.IsNotProcessing && string.IsNullOrEmpty(ViewModel.OperationUnavailableReason);
+            if (ViewModel.HasFile && _sourcePreviewPath != ViewModel.FilePath)
+            {
+                _sourcePreviewPath = ViewModel.FilePath;
+                SourcePlayer.Source = MediaSource.CreateFromUri(new Uri(ViewModel.FilePath));
+            }
         }
 
         private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(MainViewModel.IsProcessing))
+            if (e.PropertyName == nameof(MainViewModel.OperationUnavailableReason))
+                StartButton.IsEnabled = ViewModel.IsNotProcessing && ViewModel.HasFile && string.IsNullOrEmpty(ViewModel.OperationUnavailableReason);
+            if (e.PropertyName == nameof(MainViewModel.IsProcessing) || e.PropertyName == nameof(MainViewModel.IsProbing))
             {
                 UpdateProcessingUI();
                 CorrectionStartButton.Visibility = ViewModel.IsProcessing ? Visibility.Collapsed : Visibility.Visible;
@@ -479,7 +609,9 @@ namespace Clippi
                 ? Visibility.Visible
                 : Visibility.Collapsed;
 
-            var controlsEnabled = !ViewModel.IsProcessing;
+            var controlsEnabled = ViewModel.IsNotProcessing;
+            StartButton.IsEnabled = controlsEnabled && ViewModel.HasFile && string.IsNullOrEmpty(ViewModel.OperationUnavailableReason);
+            AudioActionSelector.IsEnabled = controlsEnabled;
             OperationSelector.IsEnabled = controlsEnabled;
             SetPanelEnabled(TrimPanel, controlsEnabled);
             SetPanelEnabled(FormatPanel, controlsEnabled);

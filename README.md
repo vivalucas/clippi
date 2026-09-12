@@ -4,13 +4,17 @@
 
 Clippi 是一款跨平台原生桌面视频处理工具。它以 ffmpeg / ffprobe 为处理引擎，用 macOS SwiftUI 和 Windows WinUI 3 提供图形界面，让常见视频处理任务不再依赖命令行。
 
+## 界面
+
+侧栏以同一层级提供裁剪、格式转换、缩放、旋转与镜像、音频处理；提取音频与去除音频在工具内切换。支持跟随系统、浅色和深色外观，并保存偏好。常用工具共用素材，macOS 提供预览、参数设置和固定导出栏，Windows 同步采用侧栏与素材预览布局。
+
 ## 当前功能
 
 - 拖拽或选择单个、多个媒体文件，也可导入文件夹当前层
 - 自动读取分辨率、时长、编码、帧率和码率
 - 视频裁剪：快速模式（复制流）和精确模式（重编码）
 - 格式转换：MP4 / MKV / MOV / WebM
-- 分辨率缩放：4K / 1080p / 720p / 480p
+- 分辨率缩放：4K / 1080p / 720p / 480p，保持画面比例并适配目标范围
 - 音频处理：提取 MP3 / AAC / WAV，或移除音轨
 - GPU 编码探测：macOS VideoToolbox，Windows NVENC / QSV
 - 素材校正：单条或批量旋转 90°/180°、左右镜像、上下镜像并实时预览
@@ -34,7 +38,7 @@ Clippi 是一款跨平台原生桌面视频处理工具。它以 ffmpeg / ffprob
 
 > WinUI 3 应用无法编译成真正的单文件 exe，便携版是"首次运行时解压一次"的自解压程序：双击后选择解压目录，之后直接运行解压目录里的 `Clippi.exe`。
 
-Release 构建会把 ffmpeg / ffprobe 一起打包进应用产物；用户不需要额外安装 ffmpeg。开发环境也可以通过 `scripts/download_ffmpeg.*` 下载本地二进制，Rust 核心库会优先查找应用内置路径，其次查找 `CLIPPI_FFMPEG_DIR`，最后回退到系统 `PATH`。
+Release 构建会把 ffmpeg / ffprobe 一起打包进应用产物；用户不需要额外安装 ffmpeg。开发环境也可以通过 `scripts/download_ffmpeg.*` 下载本地二进制，Rust 核心库会优先查找 `CLIPPI_FFMPEG_DIR`，其次查找应用内置路径，最后回退到系统 `PATH`。
 
 ## 技术栈
 

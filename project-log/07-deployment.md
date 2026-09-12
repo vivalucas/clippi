@@ -74,3 +74,10 @@ xattr -cr /Applications/Clippi.app
 |------|----------|------|
 | 2025-05-14 | 初始版本，基于项目规划文档填充 | 项目初始化 |
 | 2026-06-04 | 更新 CI 触发方式和 Windows 产物格式为 zip | 与当前 workflow / README 保持一致 |
+
+
+## 2026-09-12 界面重设计同步
+
+macOS 工程同时配置 Debug/Release 的 AVKit 链接，避免导入素材后运行时符号缺失崩溃。品牌标记与 AppIcon 放入 asset catalog；Windows csproj 声明 Assets 内容与 ApplicationIcon，窗口读取 Assets/Clippi.ico。打包验收须检查资源随产物拷贝；本轮仅 macOS 本地构建已验证，Windows 发布包未运行。
+
+详见 [本轮综合自查](13-ui-redesign-review.md)。历史阶段描述保留供追溯，以本节为准。

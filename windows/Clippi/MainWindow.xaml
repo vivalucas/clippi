@@ -8,9 +8,58 @@
     mc:Ignorable="d"
     Title="Clippi">
 
-    <TabView x:Name="WorkspaceTabs" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent"
-             SelectionChanged="OnWorkspaceSelectionChanged">
-      <TabViewItem x:Uid="CorrectionTab" Header="素材方向校正" IsClosable="False">
+    <Grid x:Name="RootLayout" Background="{ThemeResource BrandCanvasBrush}">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="216"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Grid Padding="16,28,16,20" Background="{ThemeResource BrandSidebarBrush}">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="12,0,0,28">
+          <Image Source="ms-appx:///Assets/BrandMark.png" Width="38" Height="38" Stretch="Uniform"/>
+          <TextBlock Text="Clippi" FontSize="23" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </StackPanel>
+        <ListBox x:Name="ToolNavigation" Grid.Row="1" SelectedIndex="0" SelectionChanged="OnToolNavigationChanged"
+                 Background="Transparent" BorderThickness="0" IsEnabled="{x:Bind ViewModel.IsNotProcessing, Mode=OneWay}">
+          <ListBoxItem x:Uid="NavTrim" Content="裁剪" Padding="14,12"/>
+          <ListBoxItem x:Uid="NavConvert" Content="转换格式" Padding="14,12"/>
+          <ListBoxItem x:Uid="NavScale" Content="缩放" Padding="14,12"/>
+          <ListBoxItem x:Uid="NavCorrection" Content="旋转与镜像" Padding="14,12"/>
+          <ListBoxItem x:Uid="NavAudio" Content="音频处理" Padding="14,12"/>
+        </ListBox>
+        <ToggleButton x:Name="SettingsButton" x:Uid="SettingsButton" Grid.Row="2" Content="设置" HorizontalAlignment="Stretch" Padding="14,12"
+                      Click="OnSettingsClick" IsEnabled="{x:Bind ViewModel.IsNotProcessing, Mode=OneWay}"/>
+      </Grid>
+      <ScrollViewer x:Name="SettingsWorkspace" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28" Spacing="24" MaxWidth="680" HorizontalAlignment="Left">
+          <StackPanel Spacing="6">
+            <TextBlock x:Uid="SettingsTitle" Text="设置" FontSize="24" FontWeight="SemiBold"/>
+            <TextBlock x:Uid="SettingsSubtitle" Text="按你的习惯使用 Clippi" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+          </StackPanel>
+          <Border Padding="24" CornerRadius="14" Background="{ThemeResource BrandSurfaceBrush}">
+            <ComboBox x:Name="AppearancePicker" x:Uid="AppearancePicker" Header="外观" HorizontalAlignment="Stretch" SelectionChanged="OnAppearanceChanged">
+              <ComboBoxItem x:Uid="AppearanceSystem" Content="跟随系统" Tag="system"/>
+              <ComboBoxItem x:Uid="AppearanceLight" Content="浅色" Tag="light"/>
+              <ComboBoxItem x:Uid="AppearanceDark" Content="深色" Tag="dark"/>
+            </ComboBox>
+          </Border>
+          <Border Padding="24" CornerRadius="14" Background="{ThemeResource BrandSurfaceBrush}">
+            <StackPanel Spacing="16">
+              <TextBlock x:Uid="SettingsExport" Text="默认导出位置" FontWeight="SemiBold"/>
+              <TextBlock Text="{x:Bind ViewModel.DefaultOutputDisplay, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+              <TextBlock x:Uid="SettingsExportHint" Text="用于新导入的素材和未指定位置的批量导出。当前输出路径保持不变。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button x:Uid="SettingsChooseFolder" Content="更改" Click="OnChooseDefaultOutput"/>
+                <Button x:Uid="SettingsRestore" Content="恢复默认" Click="OnRestoreDefaultOutput"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <TextBlock x:Name="SettingsMessage" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+          <StackPanel Spacing="10">
+            <TextBlock Text="Clippi" FontWeight="SemiBold"/>
+            <TextBlock x:Uid="LocalProcessing" Text="在本机处理" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <TextBlock x:Uid="SettingsLocalHint" Text="素材无需上传。原文件保持不变。" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+      <Grid x:Name="CorrectionWorkspace" Grid.Column="1" Visibility="Collapsed">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -24,8 +73,8 @@
             <AppBarButton x:Uid="CorrectionClear" Icon="Clear" Label="清空" Click="OnClearCorrectionMedia" IsEnabled="{x:Bind ViewModel.CanClearCorrection, Mode=OneWay}"/>
           </CommandBar>
 
-          <Border Grid.Row="1" Margin="20" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="2"
-                  CornerRadius="8" AllowDrop="True" Drop="OnCorrectionDrop" DragOver="OnDragOver"
+          <Border Grid.Row="1" Margin="20" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                  CornerRadius="14" AllowDrop="True" Drop="OnCorrectionDrop" DragOver="OnDragOver"
                   Visibility="{x:Bind ConvertInverseBoolToVisibility(ViewModel.HasCorrectionMedia), Mode=OneWay}">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
               <FontIcon Glyph="&#xE8B7;" FontSize="48"/>
@@ -84,7 +133,7 @@
               <Grid x:Name="CorrectionPreviewHost" Grid.Row="0" Margin="20" Background="Black" RenderTransformOrigin="0.5,0.5"
                     SizeChanged="OnCorrectionPreviewSizeChanged">
                 <Grid.RenderTransform><ScaleTransform x:Name="CorrectionPreviewFlipTransform"/></Grid.RenderTransform>
-                <MediaPlayerElement x:Name="CorrectionPlayer" AreTransportControlsEnabled="True" Stretch="Uniform"
+                <MediaPlayerElement x:Name="CorrectionPlayer" AreTransportControlsEnabled="False" Stretch="Uniform"
                                     RenderTransformOrigin="0.5,0.5">
                   <MediaPlayerElement.RenderTransform><RotateTransform x:Name="CorrectionPreviewRotationTransform"/></MediaPlayerElement.RenderTransform>
                 </MediaPlayerElement>
@@ -93,6 +142,11 @@
                 </Image>
               </Grid>
               <StackPanel Grid.Row="1" Padding="16" Spacing="12">
+                <Grid ColumnSpacing="12">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Button x:Name="CorrectionPlayButton" x:Uid="PreviewPlay" Content="播放 / 暂停" Click="OnCorrectionPlayPause"/>
+                  <Slider x:Name="CorrectionSeek" AutomationProperties.Name="{x:Bind PlaybackPositionLabel}" Grid.Column="1" Minimum="0" Maximum="1" ValueChanged="OnCorrectionSeekChanged"/>
+                </Grid>
                 <StackPanel Spacing="8">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button x:Uid="CorrectionRotateLeftButton" Content="左转 90°" Click="OnRotateLeft" IsEnabled="{x:Bind ViewModel.CanEditCorrection, Mode=OneWay}"/>
@@ -134,119 +188,67 @@
             </StackPanel>
           </Grid>
         </Grid>
-      </TabViewItem>
-
-      <TabViewItem x:Uid="OtherToolsTab" Header="其他工具" IsClosable="False">
-    <Grid Margin="20">
+      </Grid>
+      <Grid x:Name="ToolsWorkspace" Grid.Column="1">
+    <Grid Margin="28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Header -->
         <Grid Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="Clippi"
+            <TextBlock x:Name="ToolTitle" x:Uid="ToolTitle" Text="裁剪"
                        Style="{StaticResource TitleTextBlockStyle}"/>
-            <TextBlock HorizontalAlignment="Right"
-                       VerticalAlignment="Center"
-                       Text="{x:Bind ViewModel.GpuEncoder, Mode=OneWay}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       FontSize="12"/>
+            <Button x:Uid="ReplaceSource" Content="选择素材" HorizontalAlignment="Right" Tapped="OnSelectFileTapped"
+                    IsEnabled="{x:Bind ViewModel.IsNotProcessing, Mode=OneWay}"/>
         </Grid>
 
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel>
         <!-- Drop Area / File Info -->
-        <Grid Grid.Row="1" Height="200" Margin="0,0,0,16">
+        <Grid Grid.Row="1" Height="250" Margin="0,0,0,24" AllowDrop="True" Drop="OnFileDrop" DragOver="OnDragOver">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="290"/></Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Margin="0,0,16,0" CornerRadius="14" Background="Black"
+                    Visibility="{x:Bind ConvertBoolToVisibility(ViewModel.HasFile), Mode=OneWay}">
+                <MediaPlayerElement x:Name="SourcePlayer" AreTransportControlsEnabled="True" Stretch="Uniform"/>
+            </Border>
             <!-- Drop Area (shown when no file) -->
-            <Border x:Name="DropArea"
+            <Border x:Name="DropArea" Grid.ColumnSpan="2"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="2"
-                    CornerRadius="8"
+                    BorderThickness="1"
+                    CornerRadius="14"
                     Padding="40"
-                    AllowDrop="True"
-                    Drop="OnFileDrop"
-                    DragOver="OnDragOver"
                     Visibility="{x:Bind ConvertBoolToVisibility(ViewModel.HasNoFile), Mode=OneWay}">
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Tapped="OnSelectFileTapped">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <FontIcon Glyph="&#xE710;" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
                     <TextBlock x:Uid="DropPrimaryText"
                                Text="拖拽视频文件到这里"
                                Style="{StaticResource SubtitleTextBlockStyle}"
                                HorizontalAlignment="Center"/>
-                    <TextBlock x:Uid="DropSecondaryText"
-                               Text="或点击选择文件"
-                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                               HorizontalAlignment="Center"
-                               Margin="0,8,0,0"/>
+                    <Button x:Uid="ChooseMediaButton" Content="选择素材" Click="OnChooseMediaClick" HorizontalAlignment="Center" Margin="0,16,0,0"
+                            Style="{StaticResource AccentButtonStyle}" IsEnabled="{x:Bind ViewModel.IsNotProcessing, Mode=OneWay}"/>
                 </StackPanel>
             </Border>
 
             <!-- File Info (shown when file loaded) -->
-            <Grid x:Name="FileInfoGrid"
-                  Visibility="{x:Bind ConvertBoolToVisibility(ViewModel.HasFile), Mode=OneWay}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-                    <FontIcon Glyph="&#xE714;" VerticalAlignment="Center"/>
-                    <TextBlock Text="{x:Bind ViewModel.FileName, Mode=OneWay}"
-                               Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <Border Grid.Column="1" Padding="20" CornerRadius="14" Background="{ThemeResource BrandSurfaceBrush}"
+                    Visibility="{x:Bind ConvertBoolToVisibility(ViewModel.HasFile), Mode=OneWay}">
+                <StackPanel x:Name="FileInfoGrid" Spacing="16" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.FileName, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{x:Bind FormatResolution(ViewModel.Width, ViewModel.Height), Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="{x:Bind FormatDuration(ViewModel.Duration), Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="{x:Bind ViewModel.Codec, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="{x:Bind FormatFrameRate(ViewModel.FrameRate), Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
-
-                <Border Grid.Row="1" Padding="16"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        CornerRadius="8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-                            <FontIcon Glyph="&#xE711;" FontSize="14"/>
-                            <TextBlock x:Uid="ResolutionLabel" Text="分辨率"/>
-                            <TextBlock Text="{x:Bind FormatResolution(ViewModel.Width, ViewModel.Height), Mode=OneWay}"
-                                       FontWeight="SemiBold"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-                            <FontIcon Glyph="&#xE712;" FontSize="14"/>
-                            <TextBlock x:Uid="DurationLabel" Text="时长"/>
-                            <TextBlock Text="{x:Bind FormatDuration(ViewModel.Duration), Mode=OneWay}"
-                                       FontWeight="SemiBold"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE713;" FontSize="14"/>
-                            <TextBlock x:Uid="CodecLabel" Text="编码"/>
-                            <TextBlock Text="{x:Bind ViewModel.Codec, Mode=OneWay}"
-                                       FontWeight="SemiBold"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE715;" FontSize="14"/>
-                            <TextBlock x:Uid="FrameRateLabel" Text="帧率"/>
-                            <TextBlock Text="{x:Bind FormatFrameRate(ViewModel.FrameRate), Mode=OneWay}"
-                                       FontWeight="SemiBold"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
+            </Border>
         </Grid>
 
         <!-- Operation Selector -->
-        <RadioButtons x:Uid="OperationSelector" x:Name="OperationSelector" Grid.Row="2" Header="操作" SelectedIndex="0"
+        <RadioButtons x:Uid="OperationSelector" x:Name="OperationSelector" Visibility="Collapsed" Grid.Row="2" Header="操作" SelectedIndex="0"
                       SelectionChanged="OnOperationChanged">
             <RadioButton x:Uid="TrimOperation" Content="裁剪"/>
             <RadioButton x:Uid="ConvertOperation" Content="转换格式"/>
@@ -256,9 +258,14 @@
         </RadioButtons>
 
         <!-- Operation Controls -->
-        <Grid Grid.Row="3" Margin="0,8,0,0">
+        <Grid Grid.Row="3" Visibility="{x:Bind ConvertBoolToVisibility(ViewModel.HasFile), Mode=OneWay}" Margin="0,8,0,0" Padding="20" CornerRadius="14" Background="{ThemeResource BrandSurfaceBrush}">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <RadioButtons x:Name="AudioActionSelector" Visibility="Collapsed" MaxColumns="2" SelectedIndex="0" SelectionChanged="OnAudioActionChanged" Margin="0,0,0,16">
+                <RadioButton x:Uid="ExtractAudioOperation" Content="提取音频"/>
+                <RadioButton x:Uid="RemoveAudioOperation" Content="去除音频"/>
+            </RadioButtons>
             <!-- Trim Controls -->
-            <StackPanel x:Name="TrimPanel" Visibility="Visible">
+            <StackPanel x:Name="TrimPanel" Grid.Row="1" Visibility="Visible">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -286,7 +293,7 @@
             </StackPanel>
 
             <!-- Format Controls -->
-            <StackPanel x:Name="FormatPanel" Visibility="Collapsed">
+            <StackPanel x:Name="FormatPanel" Grid.Row="1" Visibility="Collapsed">
                 <TextBlock x:Uid="OutputFormatLabel" Text="输出格式" Margin="0,0,0,8"/>
                 <RadioButtons SelectedIndex="0" SelectionChanged="OnFormatChanged">
                     <RadioButton Content="MP4"/>
@@ -297,7 +304,8 @@
             </StackPanel>
 
             <!-- Scale Controls -->
-            <StackPanel x:Name="ScalePanel" Visibility="Collapsed">
+            <StackPanel x:Name="ScalePanel" Grid.Row="1" Visibility="Collapsed">
+                <TextBlock x:Uid="ScaleHint" Text="保持原始比例，适配所选尺寸范围" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,0,12"/>
                 <TextBlock x:Uid="TargetResolutionLabel" Text="目标分辨率" Margin="0,0,0,8"/>
                 <RadioButtons SelectedIndex="1" SelectionChanged="OnResolutionChanged">
                     <RadioButton Content="4K (3840x2160)"/>
@@ -308,7 +316,7 @@
             </StackPanel>
 
             <!-- Audio Controls -->
-            <StackPanel x:Name="AudioPanel" Visibility="Collapsed">
+            <StackPanel x:Name="AudioPanel" Grid.Row="1" Visibility="Collapsed">
                 <TextBlock x:Uid="AudioFormatLabel" Text="音频格式" Margin="0,0,0,8"/>
                 <RadioButtons SelectedIndex="0" SelectionChanged="OnAudioFormatChanged">
                     <RadioButton Content="MP3"/>
@@ -318,13 +326,16 @@
             </StackPanel>
 
             <!-- Remove Audio Info -->
-            <TextBlock x:Uid="RemoveAudioText" x:Name="RemoveAudioText" Visibility="Collapsed"
+            <TextBlock x:Uid="RemoveAudioText" x:Name="RemoveAudioText" Grid.Row="1" Visibility="Collapsed"
                        Text="将移除视频中的所有音频轨道"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </Grid>
 
+          </StackPanel>
+        </ScrollViewer>
+
         <!-- Output Path -->
-        <Grid Grid.Row="4" Margin="0,16,0,0">
+        <Grid Grid.Row="2" Margin="0,16,0,0" IsHitTestVisible="{x:Bind ViewModel.IsNotProcessing, Mode=OneWay}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -338,7 +349,8 @@
         </Grid>
 
         <!-- Status -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="0,12,0,0">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top" Margin="0,12,0,0">
+            <TextBlock Text="{x:Bind ViewModel.OperationUnavailableReason, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        TextWrapping="WrapWholeWords"
@@ -350,7 +362,7 @@
         </StackPanel>
 
         <!-- Progress or Actions -->
-        <Grid Grid.Row="6" Margin="0,16,0,0">
+        <Grid Grid.Row="4" Margin="0,16,0,0">
             <!-- Progress -->
             <StackPanel x:Name="ProgressPanel" Visibility="Collapsed">
                 <ProgressBar Value="{x:Bind ViewModel.Progress, Mode=OneWay}" Maximum="100"/>
@@ -363,11 +375,11 @@
             <!-- Start Button -->
             <Button x:Uid="StartButton" x:Name="StartButton" Content="开始处理"
                     Style="{StaticResource AccentButtonStyle}"
-                    HorizontalAlignment="Center"
+                    HorizontalAlignment="Right" Padding="28,12"
                     Click="OnStartClick"
                     Visibility="Collapsed"/>
         </Grid>
     </Grid>
-      </TabViewItem>
-    </TabView>
+      </Grid>
+    </Grid>
 </Window>

@@ -8,14 +8,14 @@
 ;                             to the exe itself)
 ;
 ; Usage:
-;   iscc /DAppVersion=1.1.2 /DSourcePath=build /DDistPath=dist installer\Clippi.iss
-;   iscc /DPORTABLE /DAppVersion=1.1.2 /DSourcePath=build /DDistPath=dist installer\Clippi.iss
+;   iscc /DAppVersion=1.2.0 /DSourcePath=build /DDistPath=dist installer\Clippi.iss
+;   iscc /DPORTABLE /DAppVersion=1.2.0 /DSourcePath=build /DDistPath=dist installer\Clippi.iss
 ;
 ; WinUI 3 cannot ship as a true single-file executable (XAML resources must
 ; stay next to the binary), so the "portable" flavor is a one-click extractor.
 
 #ifndef AppVersion
-  #define AppVersion "1.1.2"
+  #define AppVersion "1.2.0"
 #endif
 #ifndef SourcePath
   #define SourcePath "..\build"

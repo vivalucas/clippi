@@ -951,3 +951,8 @@ E 轮 10 个问题全部确认已修复。
 - **严重程度**：高
 - **位置**：`macos/Clippi/Views/MainView.swift`, `windows/Clippi/MainWindow.xaml.cs` 等
 - **说明**：修复了在底层放开纯音频支持后，由于系统文件选择器（NSOpenPanel / FileOpenPicker）拓展名白名单遗漏，导致用户无法通过按钮点选纯音频文件的严重断层。同时，在前后端拦截了对纯音频文件执行 `Scale` 和 `RemoveAudio` 操作时的底层 ffmpeg 致命报错，改为抛出友好的 `error.noVideoTrack` 多语言提示。
+
+
+## 2026-09-12 工作区综合自查（非独立评审）
+
+本轮为同一开发代理自查，不冒充 A/B 多人评审。确认项、修复和验证边界完整记录于 [13-ui-redesign-review.md](13-ui-redesign-review.md)。Windows 裁剪超界误清零、输出 FolderPicker 配置缺失、预览控制条随画面变换、设置返回素材重选、队列失败状态未恢复均已修复。Windows 运行验收仍未完成。
