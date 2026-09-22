@@ -95,6 +95,9 @@ clippi/
 ├── .github/workflows/
 │   ├── build-macos.yml
 │   └── build-windows.yml
+├── handbook/                       # 开发文档、当前状态与长期约定
+├── AGENTS.md                       # AI / 开发协作规则
+├── CLAUDE.md                       # 导入 AGENTS.md
 ├── LICENSE
 ├── README.md                      # 简体中文
 ├── README.en.md                   # English
@@ -102,6 +105,8 @@ clippi/
 ```
 
 ## 本地开发
+
+项目内部的架构、功能、接口、测试、发行和协作约定见 [开发文档](handbook/README.md)。
 
 ### 环境要求
 
